@@ -1843,7 +1843,8 @@ defm vncvt_x_x_w : RVVPseudoVNCVTBuiltin<"vnsrl", "vncvt_x", "csi",
                                           ["Uv", "UvUw"]]>;
 
 // 12.8. Vector Integer Comparison Instructions
-let MaskedPolicy = NonePolicy in {
+let MaskedPolicy = HasPassthruOperand,
+    SupportedMaskedPolicies = [MUPolicy, MAPolicy] in {
 defm vmseq : RVVIntMaskOutBuiltinSet;
 defm vmsne : RVVIntMaskOutBuiltinSet;
 defm vmsltu : RVVUnsignedMaskOutBuiltinSet;
@@ -2049,7 +2050,8 @@ defm vfneg_v : RVVPseudoVFUnaryBuiltin<"vfsgnjn", "xfd">;
 defm vfabs_v : RVVPseudoVFUnaryBuiltin<"vfsgnjx", "xfd">;
 
 // 14.13. Vector Floating-Point Compare Instructions
-let MaskedPolicy = NonePolicy in {
+let MaskedPolicy = HasPassthruOperand,
+    SupportedMaskedPolicies = [MUPolicy, MAPolicy] in {
 defm vmfeq : RVVFloatingMaskOutBuiltinSet;
 defm vmfne : RVVFloatingMaskOutBuiltinSet;
 defm vmflt : RVVFloatingMaskOutBuiltinSet;
