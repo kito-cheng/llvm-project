@@ -863,19 +863,27 @@ multiclass RVVUnitStridedSegLoad<string op> {
             SupportOverloading = false,
             ManualCodegen = [{
     {
-      // builtin: (val0 address, val1 address, ..., ptr, vl)
+      // ta builtin: (val0 address, val1 address, ..., ptr, vl)
+      // tu builtin: (val0 address, ..., passthru0, ..., ptr, vl)
       ResultType = ConvertType(E->getArg(0)->getType()->getPointeeType());
-      IntrinsicTypes = {ResultType, Ops[NF + 1]->getType()};
+      IntrinsicTypes = {ResultType, Ops.back()->getType()};
       // intrinsic: (passthru0, passthru1, ..., ptr, vl)
       SmallVector<llvm::Value*, 10> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(llvm::UndefValue::get(ResultType));
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[NF + 1]);
+      if (DefaultPolicy == TAIL_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 1]);
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I]);
+        Operands.push_back(Ops[2 * NF]);
+        Operands.push_back(Ops[2 * NF + 1]);
+      }
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
       clang::CharUnits Align =
-          CGM.getNaturalPointeeTypeAlignment(E->getArg(NF)->getType());
+          CGM.getNaturalPointeeTypeAlignment(E->getArg(0)->getType());
       llvm::Value *V;
       for (unsigned I = 0; I < NF; ++I) {
         llvm::Value *Val = Builder.CreateExtractValue(LoadValue, {I});
@@ -886,17 +894,26 @@ multiclass RVVUnitStridedSegLoad<string op> {
             }],
             MaskedManualCodegen = [{
     {
+      // tama builtin: (val0 address, ..., mask, ptr, vl)
       // builtin: (val0 address, ..., mask, maskedoff0, ..., ptr, vl)
       // intrinsic: (maskedoff0, ..., ptr, mask, vl)
-      IntrinsicTypes = {ConvertType(E->getArg(0)->getType()->getPointeeType()),
-                        Ops[2 * NF + 2]->getType()};
+      ResultType =  ConvertType(E->getArg(0)->getType()->getPointeeType());
+      IntrinsicTypes = {ResultType, Ops.back()->getType()};
       SmallVector<llvm::Value*, 12> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(Ops[NF + I + 1]);
-      Operands.push_back(Ops[2 * NF + 1]);
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[2 * NF + 2]);
-      Operands.push_back(ConstantInt::get(Ops.back()->getType(), TAIL_UNDISTURBED));
+      if (DefaultPolicy == TAIL_AGNOSTIC_MASK_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF + 1]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 2]);
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I + 1]);
+        Operands.push_back(Ops[2 * NF + 1]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[2 * NF + 2]);
+      }
+      Operands.push_back(ConstantInt::get(Ops.back()->getType(), DefaultPolicy));
       assert(Operands.size() == NF + 4);
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
@@ -938,16 +955,26 @@ multiclass RVVUnitStridedSegLoadFF<string op> {
             SupportOverloading = false,
             ManualCodegen = [{
     {
-      // builtin: (val0 address, val1 address, ..., ptr, new_vl, vl)
+      // ta builtin: (val0 address, val1 address, ..., ptr, new_vl, vl)
+      // tu builtin: (val0 address, ..., passthru0, ..., ptr, new_vl, vl)
       ResultType = ConvertType(E->getArg(0)->getType()->getPointeeType());
-      IntrinsicTypes = {ResultType, Ops[NF + 2]->getType()};
+      IntrinsicTypes = {ResultType, Ops.back()->getType()};
       // intrinsic: (passthru0, passthru1, ..., ptr, vl)
       SmallVector<llvm::Value*, 12> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(llvm::UndefValue::get(ResultType));
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[NF + 2]);
-      Value *NewVL = Ops[NF + 1];
+      Value *NewVL;
+      if (DefaultPolicy == TAIL_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 2]);
+        NewVL = Ops[NF + 1];
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I]);
+        Operands.push_back(Ops[2 * NF]);
+        Operands.push_back(Ops[2 * NF + 2]);
+        NewVL = Ops[2 * NF + 1];
+      }
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
       clang::CharUnits Align =
@@ -963,18 +990,29 @@ multiclass RVVUnitStridedSegLoadFF<string op> {
             }],
             MaskedManualCodegen = [{
     {
+      // tama builtin: (val0 address, ..., mask, ptr, new_vl, vl)
       // builtin: (val0 address, ..., mask, maskedoff0, ..., ptr, new_vl, vl)
       // intrinsic: (maskedoff0, ..., ptr, mask, vl)
-      IntrinsicTypes = {ConvertType(E->getArg(0)->getType()->getPointeeType()),
-                        Ops[2 * NF + 3]->getType()};
+      ResultType =  ConvertType(E->getArg(0)->getType()->getPointeeType());
+      IntrinsicTypes = {ResultType, Ops.back()->getType()};
       SmallVector<llvm::Value*, 12> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(Ops[NF + I + 1]);
-      Operands.push_back(Ops[2 * NF + 1]);
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[2 * NF + 3]);
-      Operands.push_back(ConstantInt::get(Ops.back()->getType(), TAIL_UNDISTURBED));
-      Value *NewVL = Ops[2 * NF + 2];
+      Value *NewVL;
+      if (DefaultPolicy == TAIL_AGNOSTIC_MASK_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF + 1]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 3]);
+        NewVL = Ops[NF + 2];
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I + 1]);
+        Operands.push_back(Ops[2 * NF + 1]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[2 * NF + 3]);
+        NewVL = Ops[2 * NF + 2];
+      }
+      Operands.push_back(ConstantInt::get(Ops.back()->getType(), DefaultPolicy));
       assert(Operands.size() == NF + 4);
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
@@ -1017,16 +1055,25 @@ multiclass RVVStridedSegLoad<string op> {
             SupportOverloading = false,
             ManualCodegen = [{
     {
-      // builtin: (val0 address, val1 address, ..., ptr, stride, vl)
+      // ta builtin: (val0 address, val1 address, ..., ptr, stride, vl)
+      // tu builtin: (val0 address, ..., passthru0, ..., ptr, stride, vl)
       ResultType = ConvertType(E->getArg(0)->getType()->getPointeeType());
-      IntrinsicTypes = {ResultType, Ops[NF + 2]->getType()};
+      IntrinsicTypes = {ResultType, Ops.back()->getType()};
       // intrinsic: (passthru0, passthru1, ..., ptr, stride, vl)
       SmallVector<llvm::Value*, 12> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(llvm::UndefValue::get(ResultType));
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[NF + 1]);
-      Operands.push_back(Ops[NF + 2]);
+      if (DefaultPolicy == TAIL_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 1]);
+        Operands.push_back(Ops[NF + 2]);
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I]);
+        Operands.push_back(Ops[2 * NF]);
+        Operands.push_back(Ops[2 * NF + 1]);
+        Operands.push_back(Ops[2 * NF + 2]);
+      }
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
       clang::CharUnits Align =
@@ -1041,18 +1088,28 @@ multiclass RVVStridedSegLoad<string op> {
             }],
             MaskedManualCodegen = [{
     {
+      // tama builtin: (val0 address, ..., mask, ptr, stride, vl)
       // builtin: (val0 address, ..., mask, maskedoff0, ..., ptr, stride, vl)
       // intrinsic: (maskedoff0, ..., ptr, stride, mask, vl)
-      IntrinsicTypes = {ConvertType(E->getArg(0)->getType()->getPointeeType()),
-                        Ops[2 * NF + 3]->getType()};
+      ResultType =  ConvertType(E->getArg(0)->getType()->getPointeeType());
+      IntrinsicTypes = {ResultType, Ops.back()->getType()};
       SmallVector<llvm::Value*, 12> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(Ops[NF + I + 1]);
-      Operands.push_back(Ops[2 * NF + 1]);
-      Operands.push_back(Ops[2 * NF + 2]);
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[2 * NF + 3]);
-      Operands.push_back(ConstantInt::get(Ops.back()->getType(), TAIL_UNDISTURBED));
+      if (DefaultPolicy == TAIL_AGNOSTIC_MASK_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF + 1]);
+        Operands.push_back(Ops[NF + 2]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 3]);
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I + 1]);
+        Operands.push_back(Ops[2 * NF + 1]);
+        Operands.push_back(Ops[2 * NF + 2]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[2 * NF + 3]);
+      }
+      Operands.push_back(ConstantInt::get(Ops.back()->getType(), DefaultPolicy));
       assert(Operands.size() == NF + 5);
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
@@ -1089,16 +1146,26 @@ multiclass RVVIndexedSegLoad<string op> {
             NF = nf,
             ManualCodegen = [{
     {
-      // builtin: (val0 address, val1 address, ..., ptr, index, vl)
+      // ta builtin: (val0 address, val1 address, ..., ptr, index, vl)
+      // tu builtin: (val0 address, ..., passthru0, ..., ptr, index, vl)
       ResultType = ConvertType(E->getArg(0)->getType()->getPointeeType());
-      IntrinsicTypes = {ResultType, Ops[NF + 1]->getType(), Ops[NF + 2]->getType()};
       // intrinsic: (passthru0, passthru1, ..., ptr, index, vl)
       SmallVector<llvm::Value*, 12> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(llvm::UndefValue::get(ResultType));
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[NF + 1]);
-      Operands.push_back(Ops[NF + 2]);
+      if (DefaultPolicy == TAIL_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 1]);
+        Operands.push_back(Ops[NF + 2]);
+        IntrinsicTypes = {ResultType, Ops[NF + 1]->getType(), Ops.back()->getType()};
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I]);
+        Operands.push_back(Ops[2 * NF]);
+        Operands.push_back(Ops[2 * NF + 1]);
+        Operands.push_back(Ops[2 * NF + 2]);
+        IntrinsicTypes = {ResultType, Ops[2 * NF + 1]->getType(), Ops.back()->getType()};
+      }
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
       clang::CharUnits Align =
@@ -1113,18 +1180,29 @@ multiclass RVVIndexedSegLoad<string op> {
             }],
             MaskedManualCodegen = [{
     {
+      // tama builtin: (val0 address, ..., mask, ptr, index, vl)
       // builtin: (val0 address, ..., mask, maskedoff0, ..., ptr, index, vl)
-      IntrinsicTypes = {ConvertType(E->getArg(0)->getType()->getPointeeType()),
-                        Ops[2 * NF + 2]->getType(), Ops[2 * NF + 3]->getType()};
+      ResultType = ConvertType(E->getArg(0)->getType()->getPointeeType());
       // intrinsic: (maskedoff0, ..., ptr, index, mask, vl)
       SmallVector<llvm::Value*, 12> Operands;
-      for (unsigned I = 0; I < NF; ++I)
-        Operands.push_back(Ops[NF + I + 1]);
-      Operands.push_back(Ops[2 * NF + 1]);
-      Operands.push_back(Ops[2 * NF + 2]);
-      Operands.push_back(Ops[NF]);
-      Operands.push_back(Ops[2 * NF + 3]);
-      Operands.push_back(ConstantInt::get(Ops.back()->getType(), TAIL_UNDISTURBED));
+      if (DefaultPolicy == TAIL_AGNOSTIC_MASK_AGNOSTIC) {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(llvm::UndefValue::get(ResultType));
+        Operands.push_back(Ops[NF + 1]);
+        Operands.push_back(Ops[NF + 2]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[NF + 3]);
+        IntrinsicTypes = {ResultType, Ops[NF + 2]->getType(), Ops.back()->getType()};
+      } else {
+        for (unsigned I = 0; I < NF; ++I)
+          Operands.push_back(Ops[NF + I + 1]);
+        Operands.push_back(Ops[2 * NF + 1]);
+        Operands.push_back(Ops[2 * NF + 2]);
+        Operands.push_back(Ops[NF]);
+        Operands.push_back(Ops[2 * NF + 3]);
+        IntrinsicTypes = {ResultType, Ops[2 * NF + 2]->getType(), Ops.back()->getType()};
+      }
+      Operands.push_back(ConstantInt::get(Ops.back()->getType(), DefaultPolicy));
       assert(Operands.size() == NF + 5);
       llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
       llvm::Value *LoadValue = Builder.CreateCall(F, Operands, "");
@@ -1669,12 +1747,14 @@ defm vle32ff: RVVVLEFFBuiltin<["i", "f"]>;
 defm vle64ff: RVVVLEFFBuiltin<["l", "d"]>;
 
 // 7.8 Vector Load/Store Segment Instructions
-let UnMaskedPolicy = NonePolicy, MaskedPolicy = NonePolicy in {
+let UnMaskedPolicy = HasPassthruOperand in {
 defm : RVVUnitStridedSegLoad<"vlseg">;
 defm : RVVUnitStridedSegLoadFF<"vlseg">;
 defm : RVVStridedSegLoad<"vlsseg">;
 defm : RVVIndexedSegLoad<"vluxseg">;
 defm : RVVIndexedSegLoad<"vloxseg">;
+}
+let UnMaskedPolicy = NonePolicy, MaskedPolicy = NonePolicy in {
 defm : RVVUnitStridedSegStore<"vsseg">;
 defm : RVVStridedSegStore<"vssseg">;
 defm : RVVIndexedSegStore<"vsuxseg">;
