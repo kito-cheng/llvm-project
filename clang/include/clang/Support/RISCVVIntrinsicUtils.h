@@ -14,6 +14,7 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -279,6 +280,20 @@ enum PolicyScheme : uint8_t {
   HasPolicyOperand,
 };
 
+enum Policy : uint16_t {
+  PolicyNone = 0,
+  TUMU = 1 << 0,
+  TAMU = 1 << 1,
+  TUMA = 1 << 2,
+  TAMA = 1 << 3,
+  TU = 1 << 4,
+  TA = 1 << 5,
+  MU = 1 << 6,   // TAMU
+  MA = 1 << 7,   // TAMA
+  TUM = 1 << 10, // TUMA
+  TAM = 1 << 11, // TAMA
+};
+
 // TODO refactor RVVIntrinsic class design after support all intrinsic
 // combination. This represents an instantiation of an intrinsic with a
 // particular type and prototype
@@ -290,9 +305,10 @@ private:
   std::string OverloadedName;
   std::string IRName;
   bool IsMasked;
+  bool HasMaskedOffOperand;
   bool HasVL;
   PolicyScheme Scheme;
-  bool HasUnMaskedOverloaded;
+  bool SupportOverloading;
   bool HasBuiltinAlias;
   std::string ManualCodegen;
   RVVTypePtr OutputType; // Builtin output type
@@ -301,17 +317,18 @@ private:
   // InputTypes. -1 means the return type.
   std::vector<int64_t> IntrinsicTypes;
   unsigned NF = 1;
+  Policy DefaultPolicy = Policy::PolicyNone;
 
 public:
   RVVIntrinsic(llvm::StringRef Name, llvm::StringRef Suffix,
                llvm::StringRef OverloadedName, llvm::StringRef OverloadedSuffix,
                llvm::StringRef IRName, bool IsMasked, bool HasMaskedOffOperand,
-               bool HasVL, PolicyScheme Scheme, bool HasUnMaskedOverloaded,
+               bool HasVL, PolicyScheme Scheme, bool SupportOverloading,
                bool HasBuiltinAlias, llvm::StringRef ManualCodegen,
                const RVVTypes &Types,
                const std::vector<int64_t> &IntrinsicTypes,
                const std::vector<llvm::StringRef> &RequiredFeatures,
-               unsigned NF);
+               unsigned NF, Policy DefaultPolicy, bool IsPrototypeDefaultTU);
   ~RVVIntrinsic() = default;
 
   RVVTypePtr getOutputType() const { return OutputType; }
@@ -319,11 +336,16 @@ public:
   llvm::StringRef getBuiltinName() const { return BuiltinName; }
   llvm::StringRef getName() const { return Name; }
   llvm::StringRef getOverloadedName() const { return OverloadedName; }
+  bool hasMaskedOffOperand() const { return HasMaskedOffOperand; }
   bool hasVL() const { return HasVL; }
-  bool hasPolicy() const { return Scheme != SchemeNone; }
-  bool hasPassthruOperand() const { return Scheme == HasPassthruOperand; }
-  bool hasPolicyOperand() const { return Scheme == HasPolicyOperand; }
-  bool hasUnMaskedOverloaded() const { return HasUnMaskedOverloaded; }
+  bool hasPolicy() const { return Scheme != PolicyScheme::SchemeNone; }
+  bool hasPassthruOperand() const {
+    return Scheme == PolicyScheme::HasPassthruOperand;
+  }
+  bool hasPolicyOperand() const {
+    return Scheme == PolicyScheme::HasPolicyOperand;
+  }
+  bool supportOverloading() const { return SupportOverloading; }
   bool hasBuiltinAlias() const { return HasBuiltinAlias; }
   bool hasManualCodegen() const { return !ManualCodegen.empty(); }
   bool isMasked() const { return IsMasked; }
@@ -331,6 +353,14 @@ public:
   llvm::StringRef getManualCodegen() const { return ManualCodegen; }
   PolicyScheme getPolicyScheme() const { return Scheme; }
   unsigned getNF() const { return NF; }
+  Policy getDefaultPolicy() const {
+    assert(DefaultPolicy != Policy::PolicyNone);
+    return DefaultPolicy;
+  }
+  unsigned getDefaultPolicyBits() const {
+    assert(DefaultPolicy != Policy::PolicyNone);
+    return llvm::Log2_32(static_cast<unsigned>(DefaultPolicy)) & 3;
+  }
   const std::vector<int64_t> &getIntrinsicTypes() const {
     return IntrinsicTypes;
   }
@@ -343,9 +373,15 @@ public:
                llvm::ArrayRef<PrototypeDescriptor> PrototypeDescriptors);
 
   static llvm::SmallVector<PrototypeDescriptor>
-      computeBuiltinTypes(llvm::ArrayRef<PrototypeDescriptor> Prototype,
-                          bool IsMasked, bool HasMaskedOffOperand, bool HasVL,
-                          unsigned NF);
+  computeBuiltinTypes(llvm::ArrayRef<PrototypeDescriptor> Prototype,
+                      bool IsMasked, bool HasMaskedOffOperand, bool HasVL,
+                      unsigned NF, bool IsPrototypeDefaultTU,
+                      PolicyScheme DefaultScheme,
+                      Policy DefaultPolicy = Policy::PolicyNone);
+  static uint16_t
+  serializeSupportedPolicies(llvm::ArrayRef<Policy> SupportedPolicies);
+  static llvm::SmallVector<Policy>
+  deSerializeSupportedPolicies(uint16_t PolicyBitMask, bool IsMasked);
 };
 
 // RVVRequire should be sync'ed with target features, but only
@@ -377,6 +413,9 @@ struct RVVIntrinsicRecord {
   // Suffix of overloaded intrinsic name, index of RVVSignatureTable.
   uint16_t OverloadedSuffixIndex;
 
+  // BitMask for supported policies.
+  uint16_t PolicyBitMask;
+
   // Length of the prototype.
   uint8_t PrototypeLength;
 
@@ -398,9 +437,12 @@ struct RVVIntrinsicRecord {
   // Number of fields, greater than 1 if it's segment load/store.
   uint8_t NF;
 
-  bool HasMasked :1;
-  bool HasVL :1;
-  bool HasMaskedOffOperand :1;
+  bool HasMasked : 1;
+  bool HasVL : 1;
+  bool HasMaskedOffOperand : 1;
+  bool IsPrototypeDefaultTU : 1;
+  uint8_t UnMaskedPolicyScheme : 2;
+  uint8_t MaskedPolicyScheme : 2;
 };
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
