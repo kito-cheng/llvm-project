@@ -356,10 +356,11 @@ class PseudoStore<string opcodestr, DAGOperand rsty = GPR>
   let isAsmParserOnly = 1;
 }
 
-// Pseudo add or shxadd instructions.
-class PseudoREGRel<string opcodestr>
+// Pseudo add or shxadd instructions carrying a base+index relocation.
+// Used for both medlow (%base_idx_add) and medany (%pcrel_base_idx_add).
+class PseudoBaseIdx<string opcodestr>
     : Pseudo<(outs GPR:$rd),
-             (ins GPR:$rs1, GPR:$rs2, regrel_add_symbol:$src), [], opcodestr,
+             (ins GPR:$rs1, GPR:$rs2, base_idx_add_symbol:$src), [], opcodestr,
              "$rd, $rs1, $rs2, $src"> {
   let hasSideEffects = 0;
   let mayLoad = 1;

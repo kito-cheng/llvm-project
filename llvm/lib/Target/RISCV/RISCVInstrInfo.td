@@ -476,17 +476,19 @@ def tprel_add_symbol : Operand<XLenVT> {
   let ParserMatchClass = TPRelAddSymbol;
 }
 
-def REGRelAddSymbol : AsmOperandClass {
-  let Name = "REGRelAddSymbol";
+def BaseIdxAddSymbol : AsmOperandClass {
+  let Name = "BaseIdxAddSymbol";
   let RenderMethod = "addImmOperands";
-  let DiagnosticType = "InvalidREGRelAddSymbol";
-  let DiagnosticString = "operand must be a symbol with %regrel_add specifier";
+  let DiagnosticType = "InvalidBaseIdxAddSymbol";
+  let DiagnosticString =
+      "operand must be a symbol with %base_idx_add or %pcrel_base_idx_add "
+      "specifier";
   let ParserMethod = "parseOperandWithSpecifier";
 }
 
-// A symbol with the %regrel_add variant.
-def regrel_add_symbol : Operand<XLenVT> {
-  let ParserMatchClass = REGRelAddSymbol;
+// A symbol with the %base_idx_add or %pcrel_base_idx_add variant.
+def base_idx_add_symbol : Operand<XLenVT> {
+  let ParserMatchClass = BaseIdxAddSymbol;
 }
 
 def CSRSystemRegister : AsmOperandClass {
@@ -1553,7 +1555,7 @@ def PseudoAddTPRel : Pseudo<(outs GPR:$rd),
 // fourth operand to emit a relocation on a symbol relating to this instruction.
 // The relocation does not affect any bits of the instruction itself but is used
 // as a hint to the linker.
-def PseudoAddREGRel : PseudoREGRel<"add">;
+def PseudoAddBaseIdx : PseudoBaseIdx<"add">;
 
 /// FrameIndex calculations
 

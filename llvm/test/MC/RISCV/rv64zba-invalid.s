@@ -14,11 +14,11 @@ sh2add.uw t0, t1 # CHECK: :[[@LINE]]:1: error: too few operands for instruction
 # Too few operands
 sh3add.uw t0, t1 # CHECK: :[[@LINE]]:1: error: too few operands for instruction
 
-# GP-relative symbol names require a %regrel_add modifier.
-sh1add a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %regrel_add or %regrel_add specifier
-sh2add a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %regrel_add or %regrel_add specifier
-sh3add a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %regrel_add or %regrel_add specifier
-add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %regrel_add or %regrel_add specifier
-sh1add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:23: error: operand must be a symbol with %regrel_add or %regrel_add specifier
-sh2add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:23: error: operand must be a symbol with %regrel_add or %regrel_add specifier
-sh3add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:23: error: operand must be a symbol with %regrel_add or %regrel_add specifier
+# Base+index symbol names require a %base_idx_add or %pcrel_base_idx_add modifier.
+sh1add a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %base_idx_add or %pcrel_base_idx_add specifier
+sh2add a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %base_idx_add or %pcrel_base_idx_add specifier
+sh3add a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %base_idx_add or %pcrel_base_idx_add specifier
+add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:20: error: operand must be a symbol with %base_idx_add or %pcrel_base_idx_add specifier
+sh1add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:23: error: operand must be a symbol with %base_idx_add or %pcrel_base_idx_add specifier
+sh2add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:23: error: operand must be a symbol with %base_idx_add or %pcrel_base_idx_add specifier
+sh3add.uw a0, a0, a1, %hi(foo) # CHECK: :[[@LINE]]:23: error: operand must be a symbol with %base_idx_add or %pcrel_base_idx_add specifier

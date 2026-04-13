@@ -263,16 +263,16 @@ class RVBShift_ri<bits<5> imm11_7, bits<3> funct3, RISCVOpcode opcode,
 // relating to this instruction. The relocation does not affect any bits of the
 // instruction itself but is used as a hint to the linker.
 let Predicates = [HasStdExtZba] in {
-  def PseudoSh1AddREGRel : PseudoREGRel<"sh1add">;
-  def PseudoSh2AddREGRel : PseudoREGRel<"sh2add">;
-  def PseudoSh3AddREGRel : PseudoREGRel<"sh3add">;
+  def PseudoSh1AddBaseIdx : PseudoBaseIdx<"sh1add">;
+  def PseudoSh2AddBaseIdx : PseudoBaseIdx<"sh2add">;
+  def PseudoSh3AddBaseIdx : PseudoBaseIdx<"sh3add">;
 }
 
 let Predicates = [HasStdExtZba, IsRV64] in {
-  def PseudoAddUWREGRel : PseudoREGRel<"add.uw">;
-  def PseudoSh1AddUWREGRel : PseudoREGRel<"sh1add.uw">;
-  def PseudoSh2AddUWREGRel : PseudoREGRel<"sh2add.uw">;
-  def PseudoSh3AddUWREGRel : PseudoREGRel<"sh3add.uw">;
+  def PseudoAddUWBaseIdx : PseudoBaseIdx<"add.uw">;
+  def PseudoSh1AddUWBaseIdx : PseudoBaseIdx<"sh1add.uw">;
+  def PseudoSh2AddUWBaseIdx : PseudoBaseIdx<"sh2add.uw">;
+  def PseudoSh3AddUWBaseIdx : PseudoBaseIdx<"sh3add.uw">;
 }
 
 //===----------------------------------------------------------------------===//

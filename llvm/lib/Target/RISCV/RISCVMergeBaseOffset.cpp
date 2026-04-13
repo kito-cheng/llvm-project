@@ -722,21 +722,21 @@ static unsigned getSHXADDShiftAmount(unsigned Opc) {
 static unsigned getTargetFlagsAndPattern(MachineInstr &MI) {
   switch (MI.getOpcode()) {
   case RISCV::ADD:
-    return RISCV::PseudoAddREGRel;
+    return RISCV::PseudoAddBaseIdx;
   case RISCV::ADD_UW:
-    return RISCV::PseudoAddUWREGRel;
+    return RISCV::PseudoAddUWBaseIdx;
   case RISCV::SH1ADD:
-    return RISCV::PseudoSh1AddREGRel;
+    return RISCV::PseudoSh1AddBaseIdx;
   case RISCV::SH2ADD:
-    return RISCV::PseudoSh2AddREGRel;
+    return RISCV::PseudoSh2AddBaseIdx;
   case RISCV::SH3ADD:
-    return RISCV::PseudoSh3AddREGRel;
+    return RISCV::PseudoSh3AddBaseIdx;
   case RISCV::SH1ADD_UW:
-    return RISCV::PseudoSh1AddUWREGRel;
+    return RISCV::PseudoSh1AddUWBaseIdx;
   case RISCV::SH2ADD_UW:
-    return RISCV::PseudoSh2AddUWREGRel;
+    return RISCV::PseudoSh2AddUWBaseIdx;
   case RISCV::SH3ADD_UW:
-    return RISCV::PseudoSh3AddUWREGRel;
+    return RISCV::PseudoSh3AddUWBaseIdx;
   default:
     llvm_unreachable("Unexpected ADD or SHXADD Opcode");
   }
@@ -765,13 +765,13 @@ static unsigned getTargetFlagsAndPattern(MachineInstr &MI) {
 //                      /                                    \
 //                     /                                      \
 //                    /                                        \
-//              Add the %regrel_add/%regrel_lo used as a linker
-//  add vr3,vr2,vrx,%regrel_add(s+voff)  shxadd vr3,vrx,vr2,%regrel_add(s+voff)
+//              Add the %base_idx_add/%base_idx_lo used as a linker
+//  add vr3,vr2,vrx,%base_idx_add(s+voff)  shxadd vr3,vrx,vr2,%base_idx_add(s+voff)
 //                    \                                        /
 //                     \                                      /
 //                      \                                    /
 //                       \                                  /
-//                        MemOps vr4, %regrel_lo(s+voff)(vr3)
+//                        MemOps vr4, %base_idx_lo(s+voff)(vr3)
 //
 // If the global variable is placed in the gp addressable range, We can complete
 // the operation with fewer instructions
@@ -857,8 +857,8 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
   // memops vr3, off(vr2)
   // ----Transform----
   // lui    vr1, %hi(s+off+offAddi)
-  // add    vr2, vr0, vr1, %regrel_add(s+off+offAddi)
-  // memops vr3, %regrel_lo(s+off+offAddi)(vr2)
+  // add    vr2, vr0, vr1, %base_idx_add(s+off+offAddi)
+  // memops vr3, %base_idx_lo(s+off+offAddi)(vr2)
   int64_t OffAddi = 0;
   bool AddiToRemove = false;
   if (AddMI.getOpcode() == RISCV::ADD || AddMI.getOpcode() == RISCV::ADD_UW ||
@@ -923,7 +923,7 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
       }
       UseMI.addOperand(ImmOp);
       MachineOperand &MO = UseMI.getOperand(3);
-      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(), RISCVII::MO_REGREL_ADD);
+      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(), RISCVII::MO_BASE_IDX_ADD);
       auto *TII = ST->getInstrInfo();
       UseMI.setDesc(TII->get(Res));
     }
@@ -933,7 +933,7 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
     for (MachineInstr &UseMI :
          llvm::make_early_inc_range(MRI->use_instructions(AddDstReg))) {
       MachineOperand &MO = UseMI.getOperand(2);
-      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(), RISCVII::MO_REGREL_LO);
+      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(), RISCVII::MO_BASE_IDX_LO);
     }
   }
 
