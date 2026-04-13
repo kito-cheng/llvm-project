@@ -141,6 +141,12 @@ unsigned RISCVELFObjectWriter::getRelocType(const MCFixup &Fixup,
     return ELF::R_RISCV_BASE_IDX_LO12_S;
   case RISCV::fixup_riscv_base_idx_add:
     return ELF::R_RISCV_BASE_IDX_ADD;
+  case RISCV::fixup_riscv_pcrel_base_idx_lo12_i:
+    return ELF::R_RISCV_PCREL_BASE_IDX_LO12_I;
+  case RISCV::fixup_riscv_pcrel_base_idx_lo12_s:
+    return ELF::R_RISCV_PCREL_BASE_IDX_LO12_S;
+  case RISCV::fixup_riscv_pcrel_base_idx_add:
+    return ELF::R_RISCV_PCREL_BASE_IDX_ADD;
   case RISCV::fixup_riscv_rvc_imm:
     reportError(Fixup.getLoc(), "No relocation for CI-type instructions");
     return ELF::R_RISCV_NONE;

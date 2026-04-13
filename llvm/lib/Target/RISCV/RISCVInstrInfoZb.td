@@ -266,6 +266,9 @@ let Predicates = [HasStdExtZba] in {
   def PseudoSh1AddBaseIdx : PseudoBaseIdx<"sh1add">;
   def PseudoSh2AddBaseIdx : PseudoBaseIdx<"sh2add">;
   def PseudoSh3AddBaseIdx : PseudoBaseIdx<"sh3add">;
+  def PseudoSh1AddPCRelBaseIdx : PseudoBaseIdx<"sh1add">;
+  def PseudoSh2AddPCRelBaseIdx : PseudoBaseIdx<"sh2add">;
+  def PseudoSh3AddPCRelBaseIdx : PseudoBaseIdx<"sh3add">;
 }
 
 let Predicates = [HasStdExtZba, IsRV64] in {
@@ -273,6 +276,10 @@ let Predicates = [HasStdExtZba, IsRV64] in {
   def PseudoSh1AddUWBaseIdx : PseudoBaseIdx<"sh1add.uw">;
   def PseudoSh2AddUWBaseIdx : PseudoBaseIdx<"sh2add.uw">;
   def PseudoSh3AddUWBaseIdx : PseudoBaseIdx<"sh3add.uw">;
+  def PseudoAddUWPCRelBaseIdx : PseudoBaseIdx<"add.uw">;
+  def PseudoSh1AddUWPCRelBaseIdx : PseudoBaseIdx<"sh1add.uw">;
+  def PseudoSh2AddUWPCRelBaseIdx : PseudoBaseIdx<"sh2add.uw">;
+  def PseudoSh3AddUWPCRelBaseIdx : PseudoBaseIdx<"sh3add.uw">;
 }
 
 //===----------------------------------------------------------------------===//

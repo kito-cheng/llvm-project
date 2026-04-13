@@ -39,6 +39,15 @@ enum Fixups {
   // 12-bit fixup corresponding to %pcrel_lo(foo) for the S-type store
   // instructions
   fixup_riscv_pcrel_lo12_s,
+  // 12-bit fixup corresponding to %pcrel_base_idx_lo(foo) for instructions
+  // like addi (medany)
+  fixup_riscv_pcrel_base_idx_lo12_i,
+  // 12-bit fixup corresponding to %pcrel_base_idx_lo(foo) for the S-type store
+  // instructions (medany)
+  fixup_riscv_pcrel_base_idx_lo12_s,
+  // Fixup corresponding to %pcrel_base_idx_add(foo) for PseudoAddPCRelBaseIdx,
+  // used as a linker hint (medany)
+  fixup_riscv_pcrel_base_idx_add,
   // 20-bit fixup for symbol references in the jal instruction
   fixup_riscv_jal,
   // 12-bit fixup for symbol references in the branch instructions

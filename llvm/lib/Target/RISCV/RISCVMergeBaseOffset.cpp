@@ -719,24 +719,31 @@ static unsigned getSHXADDShiftAmount(unsigned Opc) {
   }
 }
 
-static unsigned getTargetFlagsAndPattern(MachineInstr &MI) {
+static unsigned getTargetFlagsAndPattern(MachineInstr &MI, bool IsPCRel) {
   switch (MI.getOpcode()) {
   case RISCV::ADD:
-    return RISCV::PseudoAddBaseIdx;
+    return IsPCRel ? RISCV::PseudoAddPCRelBaseIdx : RISCV::PseudoAddBaseIdx;
   case RISCV::ADD_UW:
-    return RISCV::PseudoAddUWBaseIdx;
+    return IsPCRel ? RISCV::PseudoAddUWPCRelBaseIdx
+                   : RISCV::PseudoAddUWBaseIdx;
   case RISCV::SH1ADD:
-    return RISCV::PseudoSh1AddBaseIdx;
+    return IsPCRel ? RISCV::PseudoSh1AddPCRelBaseIdx
+                   : RISCV::PseudoSh1AddBaseIdx;
   case RISCV::SH2ADD:
-    return RISCV::PseudoSh2AddBaseIdx;
+    return IsPCRel ? RISCV::PseudoSh2AddPCRelBaseIdx
+                   : RISCV::PseudoSh2AddBaseIdx;
   case RISCV::SH3ADD:
-    return RISCV::PseudoSh3AddBaseIdx;
+    return IsPCRel ? RISCV::PseudoSh3AddPCRelBaseIdx
+                   : RISCV::PseudoSh3AddBaseIdx;
   case RISCV::SH1ADD_UW:
-    return RISCV::PseudoSh1AddUWBaseIdx;
+    return IsPCRel ? RISCV::PseudoSh1AddUWPCRelBaseIdx
+                   : RISCV::PseudoSh1AddUWBaseIdx;
   case RISCV::SH2ADD_UW:
-    return RISCV::PseudoSh2AddUWBaseIdx;
+    return IsPCRel ? RISCV::PseudoSh2AddUWPCRelBaseIdx
+                   : RISCV::PseudoSh2AddUWBaseIdx;
   case RISCV::SH3ADD_UW:
-    return RISCV::PseudoSh3AddUWBaseIdx;
+    return IsPCRel ? RISCV::PseudoSh3AddUWPCRelBaseIdx
+                   : RISCV::PseudoSh3AddUWBaseIdx;
   default:
     llvm_unreachable("Unexpected ADD or SHXADD Opcode");
   }
@@ -765,7 +772,9 @@ static unsigned getTargetFlagsAndPattern(MachineInstr &MI) {
 //                      /                                    \
 //                     /                                      \
 //                    /                                        \
-//              Add the %base_idx_add/%base_idx_lo used as a linker
+//              Add %base_idx_add/%base_idx_lo (medlow) or
+//              %pcrel_base_idx_add/%pcrel_base_idx_lo (medany) as a linker
+//              hint so the linker can perform gp-relative relaxation.
 //  add vr3,vr2,vrx,%base_idx_add(s+voff)  shxadd vr3,vrx,vr2,%base_idx_add(s+voff)
 //                    \                                        /
 //                     \                                      /
@@ -778,6 +787,8 @@ static unsigned getTargetFlagsAndPattern(MachineInstr &MI) {
 //
 bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
                                                   MachineInstr &Lo) {
+  // Whether this sequence uses the PC-relative (medany) base pointer (auipc).
+  const bool IsPCRel = Hi.getOpcode() == RISCV::AUIPC;
   Register LoDstReg = Lo.getOperand(0).getReg();
 
   // Can't fold if the register has more than one use
@@ -849,16 +860,17 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
   if (!isInt<32>(NewOffset))
     return false;
 
-  // Remove of the addi from add or shxadd, as:
+  // Remove the addi feeding add or shxadd, as:
   // addi   vrx, vr0, offAddi
-  // lui    vr1, %hi(s)
-  // addi   vr1, vr1, %lo(s)
+  // lui    vr1, %hi(s)                       (medany: auipc vr1, %pcrel_hi(s))
+  // addi   vr1, vr1, %lo(s)                  (medany: addi  vr1, vr1, %pcrel_lo)
   // add    vr2, vrxx, vr1
   // memops vr3, off(vr2)
   // ----Transform----
-  // lui    vr1, %hi(s+off+offAddi)
+  // lui    vr1, %hi(s+off+offAddi)           (or auipc for medany)
   // add    vr2, vr0, vr1, %base_idx_add(s+off+offAddi)
   // memops vr3, %base_idx_lo(s+off+offAddi)(vr2)
+  // (medany uses %pcrel_base_idx_add / %pcrel_base_idx_lo instead.)
   int64_t OffAddi = 0;
   bool AddiToRemove = false;
   if (AddMI.getOpcode() == RISCV::ADD || AddMI.getOpcode() == RISCV::ADD_UW ||
@@ -885,9 +897,9 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
       }
     }
 
-    // Update the Offsets of the symbol of the %hi
+    // Update the Offsets of the symbol of the %hi/%pcrel_hi
     Hi.getOperand(1).setOffset(NewOffset);
-    // Expand PseudoMovAddr into LUI
+    // Expand PseudoMovAddr into LUI (only for medlow)
     if (Hi.getOpcode() == RISCV::PseudoMovAddr) {
       auto *TII = ST->getInstrInfo();
       Hi.setDesc(TII->get(RISCV::LUI));
@@ -909,7 +921,7 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
     // use to emit a relocation on a symbol relating to this instruction
     for (MachineInstr &UseMI :
          llvm::make_early_inc_range(MRI->use_instructions(LoDstReg))) {
-      unsigned Res = getTargetFlagsAndPattern(UseMI);
+      unsigned Res = getTargetFlagsAndPattern(UseMI, IsPCRel);
       // Considering the implementation of gcc, the assembly output is unified
       // here to adapt to GNU LD and LLD implementations.
       Register Rt = UseMI.getOperand(1).getReg();
@@ -923,7 +935,9 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
       }
       UseMI.addOperand(ImmOp);
       MachineOperand &MO = UseMI.getOperand(3);
-      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(), RISCVII::MO_BASE_IDX_ADD);
+      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(),
+                    IsPCRel ? RISCVII::MO_PCREL_BASE_IDX_ADD
+                            : RISCVII::MO_BASE_IDX_ADD);
       auto *TII = ST->getInstrInfo();
       UseMI.setDesc(TII->get(Res));
     }
@@ -933,7 +947,9 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
     for (MachineInstr &UseMI :
          llvm::make_early_inc_range(MRI->use_instructions(AddDstReg))) {
       MachineOperand &MO = UseMI.getOperand(2);
-      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(), RISCVII::MO_BASE_IDX_LO);
+      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(),
+                    IsPCRel ? RISCVII::MO_PCREL_BASE_IDX_LO
+                            : RISCVII::MO_BASE_IDX_LO);
     }
   }
 

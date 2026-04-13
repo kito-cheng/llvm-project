@@ -26,6 +26,8 @@ RISCV::Specifier RISCV::parseSpecifierName(StringRef name) {
       .Case("hi", ELF::R_RISCV_HI20)
       .Case("base_idx_lo", RISCV::S_BASE_IDX_LO)
       .Case("base_idx_add", ELF::R_RISCV_BASE_IDX_ADD)
+      .Case("pcrel_base_idx_lo", RISCV::S_PCREL_BASE_IDX_LO)
+      .Case("pcrel_base_idx_add", ELF::R_RISCV_PCREL_BASE_IDX_ADD)
       .Case("pcrel_lo", RISCV::S_PCREL_LO)
       .Case("pcrel_hi", RISCV::S_PCREL_HI)
       .Case("got_pcrel_hi", RISCV::S_GOT_HI)
@@ -57,6 +59,10 @@ StringRef RISCV::getSpecifierName(Specifier S) {
     return "base_idx_lo";
   case ELF::R_RISCV_BASE_IDX_ADD:
     return "base_idx_add";
+  case RISCV::S_PCREL_BASE_IDX_LO:
+    return "pcrel_base_idx_lo";
+  case ELF::R_RISCV_PCREL_BASE_IDX_ADD:
+    return "pcrel_base_idx_add";
   case RISCV::S_PCREL_LO:
     return "pcrel_lo";
   case RISCV::S_PCREL_HI:

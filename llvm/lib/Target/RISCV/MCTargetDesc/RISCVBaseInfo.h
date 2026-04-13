@@ -472,6 +472,8 @@ enum {
 
   MO_BASE_IDX_LO = 17,
   MO_BASE_IDX_ADD = 18,
+  MO_PCREL_BASE_IDX_LO = 19,
+  MO_PCREL_BASE_IDX_ADD = 20,
 
   // Used to differentiate between target-specific "direct" flags and "bitmask"
   // flags. A machine operand can only have one "direct" flag, but can have

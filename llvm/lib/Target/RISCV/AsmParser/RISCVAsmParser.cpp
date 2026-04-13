@@ -616,7 +616,8 @@ public:
 
     RISCV::Specifier VK = RISCV::S_None;
     return RISCVAsmParser::classifySymbolRef(getExpr(), VK) &&
-           VK == ELF::R_RISCV_BASE_IDX_ADD;
+           (VK == ELF::R_RISCV_BASE_IDX_ADD ||
+            VK == ELF::R_RISCV_PCREL_BASE_IDX_ADD);
   }
 
   bool isTLSDESCCallSymbol() const {
@@ -881,7 +882,8 @@ public:
     RISCV::Specifier VK = RISCV::S_None;
     return RISCVAsmParser::classifySymbolRef(getExpr(), VK) &&
            (VK == RISCV::S_LO || VK == RISCV::S_PCREL_LO ||
-            VK == RISCV::S_BASE_IDX_LO || VK == RISCV::S_TPREL_LO ||
+            VK == RISCV::S_BASE_IDX_LO || VK == RISCV::S_PCREL_BASE_IDX_LO ||
+            VK == RISCV::S_TPREL_LO ||
             VK == ELF::R_RISCV_TLSDESC_LOAD_LO12 ||
             VK == ELF::R_RISCV_TLSDESC_ADD_LO12);
   }

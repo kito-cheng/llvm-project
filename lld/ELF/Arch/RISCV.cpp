@@ -364,6 +364,9 @@ void RISCV::scanSectionImpl(InputSectionBase &sec, Relocs<RelTy> rels) {
       continue;
     case R_RISCV_PCREL_LO12_I:
     case R_RISCV_PCREL_LO12_S:
+    case R_RISCV_PCREL_BASE_IDX_ADD:
+    case R_RISCV_PCREL_BASE_IDX_LO12_I:
+    case R_RISCV_PCREL_BASE_IDX_LO12_S:
       expr = RE_RISCV_PC_INDIRECT;
       break;
 
@@ -593,7 +596,8 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   case R_RISCV_TLSDESC_ADD_LO12:
   case R_RISCV_TPREL_LO12_I:
   case R_RISCV_LO12_I:
-  case R_RISCV_BASE_IDX_LO12_I: {
+  case R_RISCV_BASE_IDX_LO12_I:
+  case R_RISCV_PCREL_BASE_IDX_LO12_I: {
     uint64_t hi = (val + 0x800) >> 12;
     uint64_t lo = val - (hi << 12);
     write32le(loc, setLO12_I(read32le(loc), lo & 0xfff));
@@ -603,13 +607,17 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   case R_RISCV_PCREL_LO12_S:
   case R_RISCV_TPREL_LO12_S:
   case R_RISCV_LO12_S:
-  case R_RISCV_BASE_IDX_LO12_S: {
+  case R_RISCV_BASE_IDX_LO12_S:
+  case R_RISCV_PCREL_BASE_IDX_LO12_S: {
     uint64_t hi = (val + 0x800) >> 12;
     uint64_t lo = val - (hi << 12);
     write32le(loc, setLO12_S(read32le(loc), lo));
     return;
   }
-  case R_RISCV_BASE_IDX_ADD:{
+  case R_RISCV_BASE_IDX_ADD:
+  case R_RISCV_PCREL_BASE_IDX_ADD: {
+    // Marker/linker-hint relocation: no change to the instruction bytes when
+    // relaxation does not apply.
     write32le(loc, read32le(loc));
     return;
   }
@@ -1021,12 +1029,15 @@ static void relaxHi20Lo12(Ctx &ctx, const InputSection &sec, size_t i,
     break;
 
   case R_RISCV_BASE_IDX_ADD:
+  case R_RISCV_PCREL_BASE_IDX_ADD:
     sec.relaxAux->relocTypes[i] = INTERNAL_R_RISCV_BASE_IDX_ADD;
     break;
   case R_RISCV_BASE_IDX_LO12_I:
+  case R_RISCV_PCREL_BASE_IDX_LO12_I:
     sec.relaxAux->relocTypes[i] = INTERNAL_R_RISCV_BASE_IDX_ADD_I;
     break;
   case R_RISCV_BASE_IDX_LO12_S:
+  case R_RISCV_PCREL_BASE_IDX_LO12_S:
     sec.relaxAux->relocTypes[i] = INTERNAL_R_RISCV_BASE_IDX_ADD_S;
     break;
   }
@@ -1087,6 +1098,9 @@ static bool relax(Ctx &ctx, int pass, InputSection &sec) {
     case R_RISCV_BASE_IDX_ADD:
     case R_RISCV_BASE_IDX_LO12_I:
     case R_RISCV_BASE_IDX_LO12_S:
+    case R_RISCV_PCREL_BASE_IDX_ADD:
+    case R_RISCV_PCREL_BASE_IDX_LO12_I:
+    case R_RISCV_PCREL_BASE_IDX_LO12_S:
       if (relaxable(relocs, i))
         relaxHi20Lo12(ctx, sec, i, loc, r, remove);
       break;

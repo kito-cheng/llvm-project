@@ -1556,6 +1556,7 @@ def PseudoAddTPRel : Pseudo<(outs GPR:$rd),
 // The relocation does not affect any bits of the instruction itself but is used
 // as a hint to the linker.
 def PseudoAddBaseIdx : PseudoBaseIdx<"add">;
+def PseudoAddPCRelBaseIdx : PseudoBaseIdx<"add">;
 
 /// FrameIndex calculations
 

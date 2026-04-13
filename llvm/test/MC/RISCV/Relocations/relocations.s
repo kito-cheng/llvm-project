@@ -59,6 +59,10 @@ addi t1, t1, %base_idx_lo(foo+4)
 # RELOC: R_RISCV_BASE_IDX_LO12_I foo 0x4
 # INSTR: addi t1, t1, %base_idx_lo(foo+4)
 
+addi t1, t1, %pcrel_base_idx_lo(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_LO12_I .L4 0x0
+# INSTR: addi t1, t1, %pcrel_base_idx_lo(.L4)
+
 sb t1, %lo(foo)(a2)
 # RELOC: R_RISCV_LO12_S foo 0x0
 # INSTR: sb t1, %lo(foo)(a2)
@@ -82,6 +86,10 @@ sb t1, %base_idx_lo(foo)(a2)
 sb t1, %base_idx_lo(foo+4)(a2)
 # RELOC: R_RISCV_BASE_IDX_LO12_S foo 0x4
 # INSTR: sb t1, %base_idx_lo(foo+4)(a2)
+
+sb t1, %pcrel_base_idx_lo(.L4)(a2)
+# RELOC: R_RISCV_PCREL_BASE_IDX_LO12_S .L4 0x0
+# INSTR: sb t1, %pcrel_base_idx_lo(.L4)(a2)
 
 .L0:
 auipc t1, %pcrel_hi(foo)
@@ -189,6 +197,14 @@ sh3add t1, t1, t2, %base_idx_add(foo)
 sh3add.uw t1, t1, t2, %base_idx_add(foo)
 # RELOC: R_RISCV_BASE_IDX_ADD foo 0x0
 # INSTR: sh3add.uw t1, t1, t2, %base_idx_add(foo)
+
+add t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: add t1, t1, t2, %pcrel_base_idx_add(.L4)
+
+sh2add t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: sh2add t1, t1, t2, %pcrel_base_idx_add(.L4)
 
 jal zero, foo
 # RELOC: R_RISCV_JAL
