@@ -905,10 +905,20 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
       Hi.setDesc(TII->get(RISCV::LUI));
       Hi.removeOperand(2);
     }
-    // Update the Offsets of the symbol of the %lo, which will be lowring the
-    // MemOps
+    // Medany (auipc) references the .Lpcrel_hi label on the Lo ADDI's
+    // %pcrel_lo operand. The %pcrel_base_idx_{add,lo} relocations point at
+    // the same label (resolved via PC_INDIRECT in the linker). The symbol+
+    // offset is already encoded on Hi's %pcrel_hi, so the label operand
+    // carries no offset of its own.
+    MCSymbol *PCRelLabel = nullptr;
+    if (IsPCRel)
+      PCRelLabel = Lo.getOperand(2).getMCSymbol();
+
+    // For medlow, propagate NewOffset into the %lo global-address operand
+    // that will be cloned onto the load/store and ADD/SHXADD uses.
     MachineOperand &ImmOp = Lo.getOperand(1);
-    ImmOp.setOffset(NewOffset);
+    if (!IsPCRel)
+      ImmOp.setOffset(NewOffset);
 
     if (AddiToRemove) {
       LLVM_DEBUG(dbgs() << "To remove the Inst is: " << AddiOfAdd);
@@ -933,11 +943,14 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
         UseMI.addOperand(UseOp2);
         UseMI.addOperand(UseOp1);
       }
-      UseMI.addOperand(ImmOp);
+      // Append a placeholder that the following ChangeTo* will overwrite.
+      UseMI.addOperand(MachineOperand::CreateImm(0));
       MachineOperand &MO = UseMI.getOperand(3);
-      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(),
-                    IsPCRel ? RISCVII::MO_PCREL_BASE_IDX_ADD
-                            : RISCVII::MO_BASE_IDX_ADD);
+      if (IsPCRel)
+        MO.ChangeToMCSymbol(PCRelLabel, RISCVII::MO_PCREL_BASE_IDX_ADD);
+      else
+        MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(),
+                      RISCVII::MO_BASE_IDX_ADD);
       auto *TII = ST->getInstrInfo();
       UseMI.setDesc(TII->get(Res));
     }
@@ -947,9 +960,11 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
     for (MachineInstr &UseMI :
          llvm::make_early_inc_range(MRI->use_instructions(AddDstReg))) {
       MachineOperand &MO = UseMI.getOperand(2);
-      MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(),
-                    IsPCRel ? RISCVII::MO_PCREL_BASE_IDX_LO
-                            : RISCVII::MO_BASE_IDX_LO);
+      if (IsPCRel)
+        MO.ChangeToMCSymbol(PCRelLabel, RISCVII::MO_PCREL_BASE_IDX_LO);
+      else
+        MO.ChangeToGA(ImmOp.getGlobal(), ImmOp.getOffset(),
+                      RISCVII::MO_BASE_IDX_LO);
     }
   }
 
@@ -981,8 +996,11 @@ bool RISCVMergeBaseOffsetOpt::runOnMachineFunction(MachineFunction &Fn) {
       MadeChange |= foldIntoMemoryOps(Hi, *Lo);
       MadeChange |= foldShxaddIntoScaledMemory(Hi, *Lo);
       // Non-constant addressing of global array subscripts, which can be
-      // increase the optimization scenarios of gp-relax
-      if (Hi.getOpcode() != RISCV::AUIPC && Hi.getOperand(1).isGlobal() && Lo)
+      // increase the optimization scenarios of gp-relax. Both medlow (LUI)
+      // and medany (AUIPC) hi instructions are supported; the medany path
+      // emits %pcrel_base_idx_{add,lo} relocations against the .Lpcrel_hi
+      // label.
+      if (Hi.getOperand(1).isGlobal() && Lo)
         MadeChange |= foldGPIntoMemoryOps(Hi, *Lo);
     }
   }

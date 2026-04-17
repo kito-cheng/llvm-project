@@ -7,6 +7,14 @@
 ; RUN:   | FileCheck -check-prefix=RV64I %s
 ; RUN: llc -mtriple=riscv64 -mattr=+zba -riscv-enable-global-merge=false -verify-machineinstrs < %s \
 ; RUN:   | FileCheck -check-prefix=RV64ZBA %s
+; RUN: llc -mtriple=riscv32 -code-model=medium -riscv-enable-global-merge=false -verify-machineinstrs < %s \
+; RUN:   | FileCheck -check-prefix=RV32I-MEDIUM %s
+; RUN: llc -mtriple=riscv32 -code-model=medium -riscv-enable-global-merge=false -mattr=+zba -verify-machineinstrs < %s \
+; RUN:   | FileCheck -check-prefix=RV32ZBA-MEDIUM %s
+; RUN: llc -mtriple=riscv64 -code-model=medium -riscv-enable-global-merge=false -verify-machineinstrs < %s \
+; RUN:   | FileCheck -check-prefix=RV64I-MEDIUM %s
+; RUN: llc -mtriple=riscv64 -code-model=medium -mattr=+zba -riscv-enable-global-merge=false -verify-machineinstrs < %s \
+; RUN:   | FileCheck -check-prefix=RV64ZBA-MEDIUM %s
 
 @g1 = dso_local local_unnamed_addr global [100 x i8] zeroinitializer, align 1
 @g2 = dso_local local_unnamed_addr global [100 x i16] zeroinitializer, align 2
@@ -41,6 +49,38 @@ define i8 @char_load(i32 %index) {
 ; RV64ZBA-NEXT:    add a0, a0, a1, %base_idx_add(g1)
 ; RV64ZBA-NEXT:    lbu a0, %base_idx_lo(g1)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: char_load:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi0:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi0)
+; RV32I-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi0)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: char_load:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi0:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi0)
+; RV32ZBA-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi0)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: char_load:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi0:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi0)
+; RV64I-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi0)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: char_load:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi0:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi0)
+; RV64ZBA-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi0)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i8], ptr @g1, i64 0, i64 %idxprom
@@ -76,6 +116,38 @@ define i8 @char_load_offset(i32 %index) {
 ; RV64ZBA-NEXT:    add a0, a0, a1, %base_idx_add(g1+4)
 ; RV64ZBA-NEXT:    lbu a0, %base_idx_lo(g1+4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: char_load_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi1:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi1)
+; RV32I-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi1)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: char_load_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi1:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV32ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi1)
+; RV32ZBA-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi1)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: char_load_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi1:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi1)
+; RV64I-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi1)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: char_load_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi1:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV64ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi1)
+; RV64ZBA-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi1)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -114,6 +186,40 @@ define i8 @char_load_uw(i32 %index) {
 ; RV64ZBA-NEXT:    add.uw a0, a0, a1, %base_idx_add(g1)
 ; RV64ZBA-NEXT:    lbu a0, %base_idx_lo(g1)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: char_load_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi2:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi2)
+; RV32I-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi2)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: char_load_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi2:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi2)
+; RV32ZBA-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi2)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: char_load_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 32
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi2:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi2)
+; RV64I-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi2)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: char_load_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi2:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64ZBA-MEDIUM-NEXT:    add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi2)
+; RV64ZBA-MEDIUM-NEXT:    lbu a0, %pcrel_base_idx_lo(.Lpcrel_hi2)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i8], ptr @g1, i64 0, i64 %idxprom
@@ -152,6 +258,41 @@ define i16 @short_load(i32 %index) {
 ; RV64ZBA-NEXT:    sh1add a0, a0, a1, %base_idx_add(g2)
 ; RV64ZBA-NEXT:    lh a0, %base_idx_lo(g2)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: short_load:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi3:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi3)
+; RV32I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi3)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: short_load:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi3:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi3)
+; RV32ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi3)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: short_load:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi3:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi3)
+; RV64I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi3)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: short_load:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi3:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi3)
+; RV64ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi3)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i16], ptr @g2, i64 0, i64 %idxprom
@@ -190,6 +331,41 @@ define i16 @short_load_offset(i32 %index) {
 ; RV64ZBA-NEXT:    sh1add a0, a0, a1, %base_idx_add(g2+8)
 ; RV64ZBA-NEXT:    lh a0, %base_idx_lo(g2+8)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: short_load_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi4:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi4)
+; RV32I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi4)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: short_load_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi4:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi4)
+; RV32ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi4)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: short_load_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi4:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi4)
+; RV64I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi4)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: short_load_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi4:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV64ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi4)
+; RV64ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi4)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -229,6 +405,41 @@ define i16 @short_load_uw(i32 %index) {
 ; RV64ZBA-NEXT:    sh1add.uw a0, a0, a1, %base_idx_add(g2)
 ; RV64ZBA-NEXT:    lh a0, %base_idx_lo(g2)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: short_load_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi5:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi5)
+; RV32I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi5)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: short_load_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi5:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi5)
+; RV32ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi5)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: short_load_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 31
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi5:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi5)
+; RV64I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi5)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: short_load_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi5:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64ZBA-MEDIUM-NEXT:    sh1add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi5)
+; RV64ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi5)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i16], ptr @g2, i64 0, i64 %idxprom
@@ -267,6 +478,41 @@ define i32 @int_load(i32 %index) {
 ; RV64ZBA-NEXT:    sh2add a0, a0, a1, %base_idx_add(g3)
 ; RV64ZBA-NEXT:    lw a0, %base_idx_lo(g3)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: int_load:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi6:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi6)
+; RV32I-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi6)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: int_load:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi6:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi6)
+; RV32ZBA-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi6)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: int_load:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi6:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi6)
+; RV64I-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi6)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: int_load:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi6:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi6)
+; RV64ZBA-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi6)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i32], ptr @g3, i64 0, i64 %idxprom
@@ -305,6 +551,41 @@ define i32 @int_load_offset(i32 %index) {
 ; RV64ZBA-NEXT:    sh2add a0, a0, a1, %base_idx_add(g3+16)
 ; RV64ZBA-NEXT:    lw a0, %base_idx_lo(g3+16)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: int_load_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi7:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi7)
+; RV32I-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi7)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: int_load_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi7:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV32ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi7)
+; RV32ZBA-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi7)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: int_load_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi7:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi7)
+; RV64I-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi7)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: int_load_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi7:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV64ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi7)
+; RV64ZBA-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi7)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -344,6 +625,41 @@ define i32 @int_load_uw(i32 %index) {
 ; RV64ZBA-NEXT:    sh2add.uw a0, a0, a1, %base_idx_add(g3)
 ; RV64ZBA-NEXT:    lw a0, %base_idx_lo(g3)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: int_load_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi8:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi8)
+; RV32I-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi8)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: int_load_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi8:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi8)
+; RV32ZBA-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi8)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: int_load_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 30
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi8:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi8)
+; RV64I-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi8)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: int_load_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi8:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64ZBA-MEDIUM-NEXT:    sh2add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi8)
+; RV64ZBA-MEDIUM-NEXT:    lw a0, %pcrel_base_idx_lo(.Lpcrel_hi8)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i32], ptr @g3, i64 0, i64 %idxprom
@@ -386,6 +702,45 @@ define i64 @long_long_load(i32 %index) {
 ; RV64ZBA-NEXT:    sh3add a0, a0, a1, %base_idx_add(g4)
 ; RV64ZBA-NEXT:    ld a0, %base_idx_lo(g4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: long_long_load:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi9:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi9)
+; RV32I-MEDIUM-NEXT:    add a1, a1, a0
+; RV32I-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32I-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: long_long_load:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi9:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi9)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a1, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32ZBA-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: long_long_load:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi9:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi9)
+; RV64I-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi9)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: long_long_load:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi9:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi9)
+; RV64ZBA-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi9)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i64], ptr @g4, i64 0, i64 %idxprom
@@ -428,6 +783,45 @@ define i64 @long_long_load_offset(i32 %index) {
 ; RV64ZBA-NEXT:    sh3add a0, a0, a1, %base_idx_add(g4+32)
 ; RV64ZBA-NEXT:    ld a0, %base_idx_lo(g4+32)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: long_long_load_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi10:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi10)
+; RV32I-MEDIUM-NEXT:    add a1, a0, a1
+; RV32I-MEDIUM-NEXT:    lw a0, 32(a1)
+; RV32I-MEDIUM-NEXT:    lw a1, 36(a1)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: long_long_load_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi10:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi10)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a1, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    lw a0, 32(a1)
+; RV32ZBA-MEDIUM-NEXT:    lw a1, 36(a1)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: long_long_load_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi10:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4+32)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi10)
+; RV64I-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi10)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: long_long_load_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi10:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4+32)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi10)
+; RV64ZBA-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi10)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -471,6 +865,45 @@ define i64 @long_long_load_uw(i32 %index) {
 ; RV64ZBA-NEXT:    sh3add.uw a0, a0, a1, %base_idx_add(g4)
 ; RV64ZBA-NEXT:    ld a0, %base_idx_lo(g4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: long_long_load_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi11:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi11)
+; RV32I-MEDIUM-NEXT:    add a1, a1, a0
+; RV32I-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32I-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: long_long_load_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi11:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi11)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a1, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32ZBA-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: long_long_load_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 29
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi11:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi11)
+; RV64I-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi11)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: long_long_load_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi11:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    sh3add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi11)
+; RV64ZBA-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi11)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i64], ptr @g4, i64 0, i64 %idxprom
@@ -526,6 +959,58 @@ define i64 @add_more_oneuse_load(i32 %index) {
 ; RV64ZBA-NEXT:    sh3add a0, a0, a1
 ; RV64ZBA-NEXT:    ld a0, 0(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: add_more_oneuse_load:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi12:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi12)
+; RV32I-MEDIUM-NEXT:    add a0, a1, a0
+; RV32I-MEDIUM-NEXT:    lw a0, 0(a0)
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:    add a1, a1, a0
+; RV32I-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32I-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: add_more_oneuse_load:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi12:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi12)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    lw a0, 0(a0)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a1, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32ZBA-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: add_more_oneuse_load:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi12:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi12)
+; RV64I-MEDIUM-NEXT:    add a0, a1, a0
+; RV64I-MEDIUM-NEXT:    ld a0, 0(a0)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:    add a0, a1, a0
+; RV64I-MEDIUM-NEXT:    ld a0, 0(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: add_more_oneuse_load:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:    sext.w a0, a0
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi12:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi12)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV64ZBA-MEDIUM-NEXT:    ld a0, 0(a0)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV64ZBA-MEDIUM-NEXT:    ld a0, 0(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i64], ptr @g4, i64 0, i64 %idxprom
@@ -584,6 +1069,63 @@ define i64 @test_nesting_load(i32 %index) {
 ; RV64ZBA-NEXT:    sh3add a0, a0, a1, %base_idx_add(g4)
 ; RV64ZBA-NEXT:    ld a0, %base_idx_lo(g4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: test_nesting_load:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi13:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi13)
+; RV32I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi13)(a0)
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi14:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi14)
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:    add a1, a1, a0
+; RV32I-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32I-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: test_nesting_load:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi13:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi13)
+; RV32ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi13)(a0)
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi14:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi14)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a1, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    lw a0, 0(a1)
+; RV32ZBA-MEDIUM-NEXT:    lw a1, 4(a1)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: test_nesting_load:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi13:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi13)
+; RV64I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi13)(a0)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi14:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi14)
+; RV64I-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi14)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: test_nesting_load:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi13:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi13)
+; RV64ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi13)(a0)
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi14:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi14)
+; RV64ZBA-MEDIUM-NEXT:    ld a0, %pcrel_base_idx_lo(.Lpcrel_hi14)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i16], ptr @g2, i64 0, i64 %idxprom
@@ -626,6 +1168,42 @@ define void @char_store(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sb a1, %base_idx_lo(g1)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: char_store:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi15:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi15)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi15)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: char_store:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi15:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi15)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi15)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: char_store:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi15:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi15)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi15)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: char_store:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi15:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi15)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi15)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i8], ptr @g1, i64 0, i64 %idxprom
@@ -665,6 +1243,42 @@ define void @char_store_offset(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sb a1, %base_idx_lo(g1+4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: char_store_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi16:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi16)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi16)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: char_store_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi16:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV32ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi16)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi16)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: char_store_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi16:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi16)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi16)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: char_store_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi16:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1+4)
+; RV64ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi16)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi16)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -707,6 +1321,44 @@ define void @char_store_uw(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sb a1, %base_idx_lo(g1)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: char_store_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi17:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi17)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi17)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: char_store_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi17:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32ZBA-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi17)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi17)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: char_store_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 32
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi17:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi17)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi17)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: char_store_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi17:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64ZBA-MEDIUM-NEXT:    add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi17)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sb a1, %pcrel_base_idx_lo(.Lpcrel_hi17)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i8], ptr @g1, i64 0, i64 %idxprom
@@ -749,6 +1401,45 @@ define void @short_store(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sh a1, %base_idx_lo(g2)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: short_store:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi18:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi18)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi18)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: short_store:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi18:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi18)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi18)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: short_store:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi18:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi18)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi18)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: short_store:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi18:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi18)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi18)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i16], ptr @g2, i64 0, i64 %idxprom
@@ -791,6 +1482,45 @@ define void @short_store_offset(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sh a1, %base_idx_lo(g2+8)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: short_store_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi19:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi19)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi19)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: short_store_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi19:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi19)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi19)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: short_store_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi19:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi19)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi19)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: short_store_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi19:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2+8)
+; RV64ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi19)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi19)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -834,6 +1564,45 @@ define void @short_store_uw(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sh a1, %base_idx_lo(g2)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: short_store_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi20:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi20)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi20)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: short_store_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi20:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi20)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi20)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: short_store_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 31
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi20:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi20)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi20)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: short_store_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi20:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64ZBA-MEDIUM-NEXT:    sh1add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi20)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sh a1, %pcrel_base_idx_lo(.Lpcrel_hi20)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i16], ptr @g2, i64 0, i64 %idxprom
@@ -876,6 +1645,45 @@ define void @int_store(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sw a1, %base_idx_lo(g3)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: int_store:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi21:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi21)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi21)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: int_store:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi21:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi21)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi21)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: int_store:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi21:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi21)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi21)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: int_store:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi21:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi21)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi21)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i32], ptr @g3, i64 0, i64 %idxprom
@@ -918,6 +1726,45 @@ define void @int_store_offset(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sw a1, %base_idx_lo(g3+16)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: int_store_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi22:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi22)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi22)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: int_store_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi22:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV32ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi22)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi22)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: int_store_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi22:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi22)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi22)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: int_store_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi22:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3+16)
+; RV64ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi22)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi22)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -961,6 +1808,45 @@ define void @int_store_uw(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sw a1, %base_idx_lo(g3)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: int_store_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 2
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi23:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi23)
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi23)(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: int_store_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi23:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV32ZBA-MEDIUM-NEXT:    sh2add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi23)
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi23)(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: int_store_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 30
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi23:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi23)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi23)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: int_store_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi23:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g3)
+; RV64ZBA-MEDIUM-NEXT:    sh2add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi23)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sw a1, %pcrel_base_idx_lo(.Lpcrel_hi23)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i32], ptr @g3, i64 0, i64 %idxprom
@@ -1007,6 +1893,49 @@ define void @long_long_store(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sd a1, %base_idx_lo(g4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: long_long_store:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi24:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi24)
+; RV32I-MEDIUM-NEXT:    add a0, a1, a0
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32I-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: long_long_store:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi24:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi24)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32ZBA-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: long_long_store:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi24:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi24)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi24)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: long_long_store:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi24:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi24)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi24)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i64], ptr @g4, i64 0, i64 %idxprom
@@ -1053,6 +1982,49 @@ define void @long_long_store_offset(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sd a1, %base_idx_lo(g4+32)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: long_long_store_offset:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi25:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi25)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, 32(a0)
+; RV32I-MEDIUM-NEXT:    sw zero, 36(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: long_long_store_offset:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi25:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi25)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, 32(a0)
+; RV32ZBA-MEDIUM-NEXT:    sw zero, 36(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: long_long_store_offset:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi25:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4+32)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi25)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi25)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: long_long_store_offset:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi25:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4+32)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi25)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi25)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %add = add nsw i32 %index, 4
   %idxprom = sext i32 %add to i64
@@ -1100,6 +2072,49 @@ define void @long_long_store_uw(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sd a1, %base_idx_lo(g4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: long_long_store_uw:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi26:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi26)
+; RV32I-MEDIUM-NEXT:    add a0, a1, a0
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32I-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: long_long_store_uw:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi26:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi26)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32ZBA-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: long_long_store_uw:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 32
+; RV64I-MEDIUM-NEXT:    srli a0, a0, 29
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi26:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi26)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi26)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: long_long_store_uw:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi26:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    sh3add.uw a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi26)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi26)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = zext i32 %index to i64
   %arrayidx = getelementptr inbounds nuw [100 x i64], ptr @g4, i64 0, i64 %idxprom
@@ -1159,6 +2174,62 @@ define void @add_more_oneuse_store(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sd a1, 0(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: add_more_oneuse_store:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi27:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi27)
+; RV32I-MEDIUM-NEXT:    add a0, a1, a0
+; RV32I-MEDIUM-NEXT:    lw a0, 0(a0)
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:    add a0, a1, a0
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32I-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: add_more_oneuse_store:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi27:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi27)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    lw a0, 0(a0)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32ZBA-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: add_more_oneuse_store:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi27:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi27)
+; RV64I-MEDIUM-NEXT:    add a0, a1, a0
+; RV64I-MEDIUM-NEXT:    ld a0, 0(a0)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:    add a0, a1, a0
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sd a1, 0(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: add_more_oneuse_store:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:    sext.w a0, a0
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi27:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi27)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV64ZBA-MEDIUM-NEXT:    ld a0, 0(a0)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sd a1, 0(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i64], ptr @g4, i64 0, i64 %idxprom
@@ -1221,6 +2292,67 @@ define void @test_nesting_store(i32 %index) {
 ; RV64ZBA-NEXT:    li a1, 100
 ; RV64ZBA-NEXT:    sd a1, %base_idx_lo(g4)(a0)
 ; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: test_nesting_store:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi28:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi28)
+; RV32I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi28)(a0)
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi29:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi29)
+; RV32I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV32I-MEDIUM-NEXT:    add a0, a1, a0
+; RV32I-MEDIUM-NEXT:    li a1, 100
+; RV32I-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32I-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: test_nesting_store:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi28:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV32ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi28)
+; RV32ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi28)(a0)
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi29:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi29)
+; RV32ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1
+; RV32ZBA-MEDIUM-NEXT:    li a1, 100
+; RV32ZBA-MEDIUM-NEXT:    sw a1, 0(a0)
+; RV32ZBA-MEDIUM-NEXT:    sw zero, 4(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: test_nesting_store:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi28:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 1
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi28)
+; RV64I-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi28)(a0)
+; RV64I-MEDIUM-NEXT:    slli a0, a0, 3
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi29:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64I-MEDIUM-NEXT:    add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi29)
+; RV64I-MEDIUM-NEXT:    li a1, 100
+; RV64I-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi29)(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: test_nesting_store:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi28:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g2)
+; RV64ZBA-MEDIUM-NEXT:    sh1add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi28)
+; RV64ZBA-MEDIUM-NEXT:    lh a0, %pcrel_base_idx_lo(.Lpcrel_hi28)(a0)
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi29:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g4)
+; RV64ZBA-MEDIUM-NEXT:    sh3add a0, a0, a1, %pcrel_base_idx_add(.Lpcrel_hi29)
+; RV64ZBA-MEDIUM-NEXT:    li a1, 100
+; RV64ZBA-MEDIUM-NEXT:    sd a1, %pcrel_base_idx_lo(.Lpcrel_hi29)(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
 entry:
   %idxprom = sext i32 %index to i64
   %arrayidx = getelementptr inbounds [100 x i16], ptr @g2, i64 0, i64 %idxprom
