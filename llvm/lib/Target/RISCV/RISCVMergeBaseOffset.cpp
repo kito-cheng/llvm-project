@@ -897,6 +897,18 @@ bool RISCVMergeBaseOffsetOpt::foldGPIntoMemoryOps(MachineInstr &Hi,
       }
     }
 
+    // For medany (auipc), the object is guaranteed to be within 2GB of PC
+    // but addresses outside the object may not be. Mirror foldOffset's
+    // guard to avoid emitting %pcrel_hi(sym+offset) that the linker cannot
+    // resolve.
+    if (IsPCRel && Hi.getOperand(1).isGlobal()) {
+      const GlobalValue *GV = Hi.getOperand(1).getGlobal();
+      Type *Ty = GV->getValueType();
+      if (!Ty->isSized() || NewOffset < 0 ||
+          (uint64_t)NewOffset > GV->getDataLayout().getTypeAllocSize(Ty))
+        return false;
+    }
+
     // Update the Offsets of the symbol of the %hi/%pcrel_hi
     Hi.getOperand(1).setOffset(NewOffset);
     // Expand PseudoMovAddr into LUI (only for medlow)
