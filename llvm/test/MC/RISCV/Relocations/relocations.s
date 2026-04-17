@@ -202,9 +202,33 @@ add t1, t1, t2, %pcrel_base_idx_add(.L4)
 # RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
 # INSTR: add t1, t1, t2, %pcrel_base_idx_add(.L4)
 
+add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
+
+sh1add t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: sh1add t1, t1, t2, %pcrel_base_idx_add(.L4)
+
+sh1add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: sh1add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
+
 sh2add t1, t1, t2, %pcrel_base_idx_add(.L4)
 # RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
 # INSTR: sh2add t1, t1, t2, %pcrel_base_idx_add(.L4)
+
+sh2add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: sh2add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
+
+sh3add t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: sh3add t1, t1, t2, %pcrel_base_idx_add(.L4)
+
+sh3add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
+# RELOC: R_RISCV_PCREL_BASE_IDX_ADD .L4 0x0
+# INSTR: sh3add.uw t1, t1, t2, %pcrel_base_idx_add(.L4)
 
 jal zero, foo
 # RELOC: R_RISCV_JAL

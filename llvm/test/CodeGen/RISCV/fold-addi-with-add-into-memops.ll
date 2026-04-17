@@ -2362,3 +2362,80 @@ entry:
   store i64 100, ptr %arrayidx2, align 8
   ret void
 }
+
+; Guard check: the effective offset (200) lies past the end of @g1 (size 100).
+; Under medany the fold bails out because %pcrel_hi(sym+offset) is only safe
+; within the object bounds; medlow has no such restriction and still folds.
+define i8 @char_load_oob(i32 %index) {
+; RV32I-LABEL: char_load_oob:
+; RV32I:       # %bb.0: # %entry
+; RV32I-NEXT:    lui a1, %hi(g1+200)
+; RV32I-NEXT:    add a0, a0, a1, %base_idx_add(g1+200)
+; RV32I-NEXT:    lbu a0, %base_idx_lo(g1+200)(a0)
+; RV32I-NEXT:    ret
+;
+; RV32ZBA-LABEL: char_load_oob:
+; RV32ZBA:       # %bb.0: # %entry
+; RV32ZBA-NEXT:    lui a1, %hi(g1+200)
+; RV32ZBA-NEXT:    add a0, a0, a1, %base_idx_add(g1+200)
+; RV32ZBA-NEXT:    lbu a0, %base_idx_lo(g1+200)(a0)
+; RV32ZBA-NEXT:    ret
+;
+; RV64I-LABEL: char_load_oob:
+; RV64I:       # %bb.0: # %entry
+; RV64I-NEXT:    lui a1, %hi(g1+200)
+; RV64I-NEXT:    add a0, a0, a1, %base_idx_add(g1+200)
+; RV64I-NEXT:    lbu a0, %base_idx_lo(g1+200)(a0)
+; RV64I-NEXT:    ret
+;
+; RV64ZBA-LABEL: char_load_oob:
+; RV64ZBA:       # %bb.0: # %entry
+; RV64ZBA-NEXT:    lui a1, %hi(g1+200)
+; RV64ZBA-NEXT:    add a0, a0, a1, %base_idx_add(g1+200)
+; RV64ZBA-NEXT:    lbu a0, %base_idx_lo(g1+200)(a0)
+; RV64ZBA-NEXT:    ret
+;
+; RV32I-MEDIUM-LABEL: char_load_oob:
+; RV32I-MEDIUM:       # %bb.0: # %entry
+; RV32I-MEDIUM-NEXT:  .Lpcrel_hi30:
+; RV32I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi30)
+; RV32I-MEDIUM-NEXT:    add a0, a1, a0
+; RV32I-MEDIUM-NEXT:    lbu a0, 200(a0)
+; RV32I-MEDIUM-NEXT:    ret
+;
+; RV32ZBA-MEDIUM-LABEL: char_load_oob:
+; RV32ZBA-MEDIUM:       # %bb.0: # %entry
+; RV32ZBA-MEDIUM-NEXT:  .Lpcrel_hi30:
+; RV32ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV32ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi30)
+; RV32ZBA-MEDIUM-NEXT:    add a0, a1, a0
+; RV32ZBA-MEDIUM-NEXT:    lbu a0, 200(a0)
+; RV32ZBA-MEDIUM-NEXT:    ret
+;
+; RV64I-MEDIUM-LABEL: char_load_oob:
+; RV64I-MEDIUM:       # %bb.0: # %entry
+; RV64I-MEDIUM-NEXT:    sext.w a0, a0
+; RV64I-MEDIUM-NEXT:  .Lpcrel_hi30:
+; RV64I-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64I-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi30)
+; RV64I-MEDIUM-NEXT:    add a0, a1, a0
+; RV64I-MEDIUM-NEXT:    lbu a0, 200(a0)
+; RV64I-MEDIUM-NEXT:    ret
+;
+; RV64ZBA-MEDIUM-LABEL: char_load_oob:
+; RV64ZBA-MEDIUM:       # %bb.0: # %entry
+; RV64ZBA-MEDIUM-NEXT:    sext.w a0, a0
+; RV64ZBA-MEDIUM-NEXT:  .Lpcrel_hi30:
+; RV64ZBA-MEDIUM-NEXT:    auipc a1, %pcrel_hi(g1)
+; RV64ZBA-MEDIUM-NEXT:    addi a1, a1, %pcrel_lo(.Lpcrel_hi30)
+; RV64ZBA-MEDIUM-NEXT:    add a0, a1, a0
+; RV64ZBA-MEDIUM-NEXT:    lbu a0, 200(a0)
+; RV64ZBA-MEDIUM-NEXT:    ret
+entry:
+  %idxprom = sext i32 %index to i64
+  %arrayidx = getelementptr inbounds [100 x i8], ptr @g1, i64 0, i64 %idxprom
+  %p = getelementptr i8, ptr %arrayidx, i64 200
+  %0 = load i8, ptr %p, align 1
+  ret i8 %0
+}
