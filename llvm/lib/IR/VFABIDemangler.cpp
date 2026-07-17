@@ -14,6 +14,7 @@
 #include "llvm/IR/VectorTypeUtils.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Triple.h"
 #include <limits>
 
 using namespace llvm;
@@ -34,14 +35,39 @@ enum class ParseRet {
 /// Extracts the `<isa>` information from the mangled string, and
 /// sets the `ISA` accordingly. If successful, the <isa> token is removed
 /// from the input string `MangledName`.
-static ParseRet tryParseISA(StringRef &MangledName, VFISAKind &ISA) {
+///
+/// The `<isa>` token is target specific: the same letter may be assigned to a
+/// different ISA by each target's Vector Function ABI, so \p TargetTriple
+/// selects which assignment applies. On RISC-V the psABI encodes the LMUL of
+/// the variant in this token, and 'e'/'q' mean LMUL=1/8 and 1/4 rather than the
+/// x86 ISAs they name elsewhere.
+static ParseRet tryParseISA(StringRef &MangledName, VFISAKind &ISA,
+                            const Triple &TargetTriple) {
   if (MangledName.empty())
     return ParseRet::Error;
 
   if (MangledName.consume_front(VFABI::_LLVM_)) {
     ISA = VFISAKind::LLVM;
-  } else {
-    ISA = StringSwitch<VFISAKind>(MangledName.take_front(1))
+    return ParseRet::OK;
+  }
+
+  const StringRef Token = MangledName.take_front(1);
+  ISA = VFISAKind::Unknown;
+
+  // On RISC-V the psABI encodes the LMUL of the variant in the <isa> token.
+  // These letters are matched first because some of them ('q', 'e') are
+  // assigned to x86 ISAs by the target independent table below.
+  if (TargetTriple.isRISCV())
+    ISA = StringSwitch<VFISAKind>(Token)
+              .Cases({"1", "2", "4", "8"}, VFISAKind::RVV)
+              .Cases({"h", "q", "e"}, VFISAKind::RVV)
+              .Default(VFISAKind::Unknown);
+
+  // Fall back to the target independent <isa> tokens. This keeps the legacy
+  // 'r' RVV marker used by the SLEEF library descriptors working; SLEEF does
+  // not follow the psABI mangling.
+  if (ISA == VFISAKind::Unknown)
+    ISA = StringSwitch<VFISAKind>(Token)
               .Case("n", VFISAKind::AdvancedSIMD)
               .Case("s", VFISAKind::SVE)
               .Case("r", VFISAKind::RVV)
@@ -50,9 +76,8 @@ static ParseRet tryParseISA(StringRef &MangledName, VFISAKind &ISA) {
               .Case("d", VFISAKind::AVX2)
               .Case("e", VFISAKind::AVX512)
               .Default(VFISAKind::Unknown);
-    MangledName = MangledName.drop_front(1);
-  }
 
+  MangledName = MangledName.drop_front(1);
   return ParseRet::OK;
 }
 
@@ -377,7 +402,8 @@ getScalableECFromSignature(const FunctionType *Signature, const VFISAKind ISA,
 // Format of the ABI name:
 // _ZGV<isa><mask><vlen><parameters>_<scalarname>[(<redirection>)]
 std::optional<VFInfo> VFABI::tryDemangleForVFABI(StringRef MangledName,
-                                                 const FunctionType *FTy) {
+                                                 const FunctionType *FTy,
+                                                 const Triple &TargetTriple) {
   const StringRef OriginalName = MangledName;
   // Assume there is no custom name <redirection>, and therefore the
   // vector name consists of
@@ -391,7 +417,7 @@ std::optional<VFInfo> VFABI::tryDemangleForVFABI(StringRef MangledName,
   // Extract ISA. An unknow ISA is also supported, so we accept all
   // values.
   VFISAKind ISA;
-  if (tryParseISA(MangledName, ISA) != ParseRet::OK)
+  if (tryParseISA(MangledName, ISA, TargetTriple) != ParseRet::OK)
     return std::nullopt;
 
   // Extract <mask>.
@@ -542,8 +568,8 @@ void VFABI::getVectorVariantNames(
   S.split(ListAttr, ",");
 
   for (const auto &S : SetVector<StringRef>(llvm::from_range, ListAttr)) {
-    std::optional<VFInfo> Info =
-        VFABI::tryDemangleForVFABI(S, CI.getFunctionType());
+    std::optional<VFInfo> Info = VFABI::tryDemangleForVFABI(
+        S, CI.getFunctionType(), CI.getModule()->getTargetTriple());
     if (Info && CI.getModule()->getFunction(Info->VectorName)) {
       LLVM_DEBUG(dbgs() << "VFABI: Adding mapping '" << S << "' for " << CI
                         << "\n");
@@ -596,8 +622,8 @@ void VFABI::setVectorVariantNames(CallInst *CI,
 #ifndef NDEBUG
   for (const std::string &VariantMapping : VariantMappings) {
     LLVM_DEBUG(dbgs() << "VFABI: adding mapping '" << VariantMapping << "'\n");
-    std::optional<VFInfo> VI =
-        VFABI::tryDemangleForVFABI(VariantMapping, CI->getFunctionType());
+    std::optional<VFInfo> VI = VFABI::tryDemangleForVFABI(
+        VariantMapping, CI->getFunctionType(), M->getTargetTriple());
     assert(VI && "Cannot add an invalid VFABI name.");
     assert(M->getNamedValue(VI->VectorName) &&
            "Cannot add variant to attribute: "

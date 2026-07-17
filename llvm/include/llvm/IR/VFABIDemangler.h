@@ -22,6 +22,8 @@
 
 namespace llvm {
 
+class Triple;
+
 /// Describes the type of Parameters
 enum class VFParamKind {
   Vector,            // No semantic information.
@@ -183,8 +185,12 @@ static constexpr char const *_LLVM_Scalarize_ = "_LLVM_Scalarize_";
 /// factor for scalable vectors, since the mangled name doesn't encode that;
 /// it needs to be derived from the widest element types of vector arguments
 /// or return values.
-LLVM_ABI std::optional<VFInfo> tryDemangleForVFABI(StringRef MangledName,
-                                                   const FunctionType *FTy);
+/// \param TargetTriple -> target the mangled name belongs to. The `<isa>` token
+/// is assigned independently by each target's ABI, so the same letter can name
+/// a different ISA depending on the target.
+LLVM_ABI std::optional<VFInfo>
+tryDemangleForVFABI(StringRef MangledName, const FunctionType *FTy,
+                    const Triple &TargetTriple);
 
 /// Retrieve the `VFParamKind` from a string token.
 LLVM_ABI VFParamKind getVFParamKindFromString(const StringRef Token);

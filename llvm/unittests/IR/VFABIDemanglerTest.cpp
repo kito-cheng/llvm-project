@@ -14,6 +14,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/TargetParser/Triple.h"
 #include "gtest/gtest.h"
 
 using namespace llvm;
@@ -76,13 +77,18 @@ protected:
   /// function, which is used by `tryDemangleForVFABI` to check for the number
   /// of arguments on scalable vectors, and by `matchParameters` to perform some
   /// additional checking in the tests in this file.
+  ///
+  /// \p TargetTripleStr target the mangled name belongs to, which selects the
+  /// `<isa>` token assignment the parser applies.
   bool invokeParser(const StringRef MangledName,
-                    const StringRef ScalarFTyStr = "void()") {
+                    const StringRef ScalarFTyStr = "void()",
+                    const StringRef TargetTripleStr = "x86_64-unknown-linux") {
     // Reset the VFInfo to be able to call `invokeParser` multiple times in
     // the same test.
     reset(ScalarFTyStr);
 
-    const auto OptInfo = VFABI::tryDemangleForVFABI(MangledName, ScalarFTy);
+    const auto OptInfo = VFABI::tryDemangleForVFABI(MangledName, ScalarFTy,
+                                                    Triple(TargetTripleStr));
     if (OptInfo)
       Info = *OptInfo;
 
@@ -293,6 +299,57 @@ TEST_F(VFABIParserTest, ParseScalableSVE) {
   EXPECT_EQ(Parameters[1], VFParameter({1, VFParamKind::GlobalPredicate}));
   EXPECT_EQ(ScalarName, "foo");
   EXPECT_EQ(VectorName, "vector_foo");
+}
+
+TEST_F(VFABIParserTest, ParseScalableRVV) {
+  // On RISC-V the <isa> token is the LMUL of the variant.
+  EXPECT_TRUE(invokeParser("_ZGV2Mxv_foo(vector_foo)", "void(i32)",
+                           "riscv64-unknown-linux"));
+  EXPECT_EQ(ISA, VFISAKind::RVV);
+  EXPECT_TRUE(isMasked());
+  EXPECT_EQ(getFunctionType(), FTyMaskedVLA_i32);
+  EXPECT_EQ(VF, ElementCount::getScalable(4));
+  EXPECT_EQ(Parameters.size(), (unsigned)2);
+  EXPECT_EQ(Parameters[0], VFParameter({0, VFParamKind::Vector}));
+  EXPECT_EQ(Parameters[1], VFParameter({1, VFParamKind::GlobalPredicate}));
+  EXPECT_EQ(ScalarName, "foo");
+  EXPECT_EQ(VectorName, "vector_foo");
+}
+
+TEST_F(VFABIParserTest, ParseRVVLMULTokens) {
+  // Every psABI LMUL token maps to RVV, including the fractional ones. 'q' and
+  // 'e' are also assigned by other targets, so they only mean LMUL=1/4 and
+  // LMUL=1/8 when the target is RISC-V.
+  for (const char *Name :
+       {"_ZGV1Mxv_foo(vector_foo)", "_ZGV2Mxv_foo(vector_foo)",
+        "_ZGV4Mxv_foo(vector_foo)", "_ZGV8Mxv_foo(vector_foo)",
+        "_ZGVhMxv_foo(vector_foo)", "_ZGVqMxv_foo(vector_foo)",
+        "_ZGVeMxv_foo(vector_foo)"}) {
+    EXPECT_TRUE(invokeParser(Name, "void(i32)", "riscv64-unknown-linux"))
+        << "Failed to parse " << Name;
+    EXPECT_EQ(ISA, VFISAKind::RVV) << "Wrong ISA for " << Name;
+  }
+
+  // The legacy 'r' RVV marker used by the SLEEF descriptors keeps working on
+  // RISC-V; SLEEF does not follow the psABI mangling.
+  EXPECT_TRUE(invokeParser("_ZGVrMxv_foo(vector_foo)", "void(i32)",
+                           "riscv64-unknown-linux"));
+  EXPECT_EQ(ISA, VFISAKind::RVV);
+}
+
+TEST_F(VFABIParserTest, ParseISATokenIsTargetSpecific) {
+  // 'e' is AVX512 on x86 and LMUL=1/8 on RISC-V. A scalable <vlen> is only
+  // valid for the latter.
+  EXPECT_TRUE(invokeParser("_ZGVeMxv_foo(vector_foo)", "void(i32)",
+                           "riscv64-unknown-linux"));
+  EXPECT_EQ(ISA, VFISAKind::RVV);
+
+  EXPECT_FALSE(invokeParser("_ZGVeMxv_foo(vector_foo)", "void(i32)",
+                            "x86_64-unknown-linux"));
+
+  EXPECT_TRUE(invokeParser("_ZGVeM2v_foo(vector_foo)", "void(i32)",
+                           "x86_64-unknown-linux"));
+  EXPECT_EQ(ISA, VFISAKind::AVX512);
 }
 
 TEST_F(VFABIParserTest, ParseFixedWidthSVE) {

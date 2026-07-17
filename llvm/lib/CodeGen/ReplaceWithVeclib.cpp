@@ -172,7 +172,8 @@ static bool replaceWithCallToVeclib(const TargetLibraryInfo &TLI,
   FunctionType *ScalarFTy =
       FunctionType::get(ScalarRetTy, ScalarArgTypes, /*isVarArg*/ false);
   const std::string MangledName = VD->getVectorFunctionABIVariantString();
-  auto OptInfo = VFABI::tryDemangleForVFABI(MangledName, ScalarFTy);
+  auto OptInfo = VFABI::tryDemangleForVFABI(MangledName, ScalarFTy,
+                                            II->getModule()->getTargetTriple());
   if (!OptInfo)
     return false;
 

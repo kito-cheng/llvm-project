@@ -2569,7 +2569,8 @@ void Verifier::verifyFunctionAttrs(FunctionType *FT, AttributeList Attrs,
 
   if (auto A = Attrs.getFnAttr("vector-function-abi-variant"); A.isValid()) {
     StringRef S = A.getValueAsString();
-    const std::optional<VFInfo> Info = VFABI::tryDemangleForVFABI(S, FT);
+    const std::optional<VFInfo> Info =
+        VFABI::tryDemangleForVFABI(S, FT, M.getTargetTriple());
     if (!Info)
       CheckFailed("invalid name for a VFABI variant: " + S, V);
   }

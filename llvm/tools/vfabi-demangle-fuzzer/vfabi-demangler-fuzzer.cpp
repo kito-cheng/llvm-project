@@ -33,7 +33,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   if (!MangledName.empty() && MangledName.find_first_of(0) == StringRef::npos) {
     FunctionType *FTy =
         FunctionType::get(Type::getVoidTy(M->getContext()), false);
-    const auto Info = VFABI::tryDemangleForVFABI(MangledName, FTy);
+    const auto Info =
+        VFABI::tryDemangleForVFABI(MangledName, FTy, M->getTargetTriple());
 
     // Do not optimize away the return value. Inspired by
     // https://github.com/google/benchmark/blob/main/include/benchmark/benchmark.h#L307-L345

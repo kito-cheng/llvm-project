@@ -57,8 +57,8 @@ class VFDatabase {
     if (ListOfStrings.empty())
       return;
     for (const auto &MangledName : ListOfStrings) {
-      const std::optional<VFInfo> Shape =
-          VFABI::tryDemangleForVFABI(MangledName, CI.getFunctionType());
+      const std::optional<VFInfo> Shape = VFABI::tryDemangleForVFABI(
+          MangledName, CI.getFunctionType(), CI.getModule()->getTargetTriple());
       // A match is found via scalar and vector names, and also by
       // ensuring that the variant described in the attribute has a
       // corresponding definition or declaration of the vector

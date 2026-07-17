@@ -46,8 +46,9 @@ static void addVariantDeclaration(CallInst &CI, const ElementCount &VF,
 
   assert(!ScalarFTy->isVarArg() && "VarArg functions are not supported.");
 
-  const std::optional<VFInfo> Info = VFABI::tryDemangleForVFABI(
-      VD->getVectorFunctionABIVariantString(), ScalarFTy);
+  const std::optional<VFInfo> Info =
+      VFABI::tryDemangleForVFABI(VD->getVectorFunctionABIVariantString(),
+                                 ScalarFTy, M->getTargetTriple());
 
   assert(Info && "Failed to demangle vector variant");
   assert(Info->Shape.VF == VF && "Mangled name does not match VF");
