@@ -1827,7 +1827,8 @@ public:
   }
 
   virtual void createLongJmp(InstructionListType &Seq, const MCSymbol *Target,
-                             MCContext *Ctx, bool IsTailCall = false) {
+                             MCContext *Ctx, bool IsTailCall = false,
+                             MCPhysReg ScratchReg = 0) {
     llvm_unreachable("not implemented");
   }
 

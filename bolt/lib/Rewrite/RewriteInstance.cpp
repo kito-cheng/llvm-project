@@ -5670,9 +5670,24 @@ void RewriteInstance::updateELFSymbolTable(
         return BC->getMarkerType(Symbol.getType(), Symbol.st_size,
                                  *SymbolName) != MarkerSymType::NONE;
       };
+      // Skip compiler- and assembler-internal local labels. Under linker
+      // relaxation (common on RISC-V) these reach .symtab only because
+      // relocations reference them, e.g. ".Lpcrel_hi0" from
+      // createNamedTempSymbol("pcrel_hi") and the ".L0 " fake label given to
+      // nameless temporaries. They carry no symbolication value, they are what
+      // ld/objcopy --discard-locals drops, and unlike real labels they can
+      // appear inside ICF-folded functions. Filter on the same prefix used to
+      // generate them, mirroring adjustFunctionBoundaries(), which already
+      // keeps them from becoming secondary entry points.
+      const StringRef InternalSymbolPrefix =
+          BC->AsmInfo->getInternalSymbolPrefix();
+      const bool IsInternalLabel =
+          !InternalSymbolPrefix.empty() &&
+          SymbolName->starts_with(InternalSymbolPrefix);
       const bool IsLocalLabel = Symbol.getType() == ELF::STT_NOTYPE &&
                                 Symbol.getBinding() == ELF::STB_LOCAL &&
-                                Symbol.st_size == 0 && !IsMarkerSymbol();
+                                Symbol.st_size == 0 && !IsInternalLabel &&
+                                !IsMarkerSymbol();
       Function =
           (Symbol.getType() == ELF::STT_FUNC || IsLocalLabel)
               ? BC->getBinaryFunctionContainingAddress(Symbol.st_value,

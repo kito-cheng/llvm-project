@@ -42,6 +42,9 @@ void FixRISCVCallsPass::runOnFunction(BinaryFunction &BF) {
 
       auto NextII = std::next(II);
 
+      while (NextII != BB.end() && MIB->isCFI(*NextII))
+        ++NextII;
+
       if (NextII == BB.end())
         break;
 

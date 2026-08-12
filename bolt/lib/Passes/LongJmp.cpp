@@ -670,14 +670,146 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
   if (!BF.isSplit() && BF.estimateSize() < ShortestJumpSpan)
     return;
 
+  DenseMap<const MCInst *, MCPhysReg> ScratchRegs;
+  if (BC.isRISCV()) {
+    const unsigned NumRegs = BC.MRI->getNumRegs();
+    DenseMap<const BinaryBasicBlock *, BitVector> LiveIns;
+    DenseMap<const BinaryBasicBlock *, BitVector> LiveOuts;
+    for (const BinaryBasicBlock &BB : BF) {
+      LiveIns.try_emplace(&BB, NumRegs, false);
+      LiveOuts.try_emplace(&BB, NumRegs, false);
+    }
+
+    BitVector ABIExitState(NumRegs, false);
+    MIB->getDefaultLiveOut(ABIExitState);
+    MIB->getCalleeSavedRegs(ABIExitState);
+
+    auto transfer = [&](const MCInst &Inst, BitVector State) {
+      if (MIB->isCFI(Inst))
+        return State;
+
+      BitVector Written(NumRegs, false);
+      BitVector Used(NumRegs, false);
+      if (MIB->isCall(Inst)) {
+        MIB->getGPRegs(Written, /*IncludeAlias=*/true);
+        BitVector Preserved(NumRegs, false);
+        MIB->getCalleeSavedRegs(Preserved);
+        Preserved.flip();
+        Written &= Preserved;
+        Used |= MIB->getRegsUsedAsParams();
+      } else {
+        MIB->getWrittenRegs(Inst, Written);
+        MIB->getUsedRegs(Inst, Used);
+      }
+      Written.flip();
+      State &= Written;
+      State |= Used;
+      return State;
+    };
+
+    bool Changed;
+    do {
+      Changed = false;
+      for (BinaryBasicBlock &BB : reverse(BF)) {
+        BitVector LiveOut(NumRegs, false);
+        if (BB.succ_size() == 0)
+          LiveOut = ABIExitState;
+        else
+          for (const BinaryBasicBlock *Succ : BB.successors())
+            LiveOut |= LiveIns[Succ];
+
+        BitVector LiveIn = LiveOut;
+        for (const MCInst &Inst : reverse(BB))
+          LiveIn = transfer(Inst, std::move(LiveIn));
+
+        if (LiveOuts[&BB] != LiveOut) {
+          LiveOuts[&BB] = std::move(LiveOut);
+          Changed = true;
+        }
+        if (LiveIns[&BB] != LiveIn) {
+          LiveIns[&BB] = std::move(LiveIn);
+          Changed = true;
+        }
+      }
+    } while (Changed);
+
+    bool CanRelax = true;
+    for (BinaryBasicBlock &BB : BF) {
+      BitVector Live = LiveOuts[&BB];
+      for (MCInst &Inst : reverse(BB)) {
+        if (!MIB->isBranch(Inst) || MIB->isIndirectBranch(Inst))
+          Live = transfer(Inst, std::move(Live));
+        else {
+          const MCSymbol *TargetSymbol = MIB->getTargetSymbol(Inst);
+          BinaryBasicBlock *TargetBB = BB.getSuccessor(TargetSymbol);
+          if (TargetBB && TargetBB->getFragmentNum() != BB.getFragmentNum()) {
+            BitVector Available = Live;
+            Available.flip();
+            BitVector GPRegs(NumRegs, false);
+            MIB->getGPRegs(GPRegs, /*IncludeAlias=*/false);
+            Available &= GPRegs;
+            MIB->removeNonScavengeableRegs(Available);
+            const int Reg = Available.find_first();
+            if (Reg == -1) {
+              CanRelax = false;
+              break;
+            }
+            ScratchRegs[&Inst] = Reg;
+          }
+          Live = transfer(Inst, std::move(Live));
+        }
+      }
+      if (!CanRelax)
+        break;
+    }
+
+    // Unlike AArch64, RISC-V has no ABI-reserved linker scratch register. If
+    // every GPR is live across a cross-fragment edge, keep this function in a
+    // single fragment rather than silently clobbering program state.
+    if (!CanRelax) {
+      BC.errs() << "BOLT-WARNING: keeping " << BF
+                << " unsplit: no dead register for a RISC-V long jump\n";
+      BinaryFunction::BasicBlockOrderType Layout(BF.getLayout().block_begin(),
+                                                 BF.getLayout().block_end());
+      for (BinaryBasicBlock &BB : BF)
+        BB.setFragmentNum(FragmentNum::main());
+      BF.getLayout().update(Layout);
+      BF.fixBranches();
+      return;
+    }
+  }
+
   auto isBranchOffsetInRange = [&](const MCInst &Inst, int64_t Offset) {
     const unsigned Bits = MIB->getPCRelEncodingSize(Inst);
     return isIntN(Bits, Offset);
   };
 
+  // Output address ranges are persistent metadata used later for translating
+  // secondary entry points. Keep RISC-V's temporary relaxation offsets
+  // separate so fragment-relative offsets cannot leak into symbol rewriting.
+  DenseMap<const BinaryBasicBlock *, uint64_t> EstimatedStart;
+  DenseMap<const BinaryBasicBlock *, uint64_t> EstimatedEnd;
+  auto getEstimatedStart = [&](const BinaryBasicBlock *BB) {
+    return BC.isRISCV() ? EstimatedStart.lookup(BB)
+                        : BB->getOutputStartAddress();
+  };
+  auto getEstimatedEnd = [&](const BinaryBasicBlock *BB) {
+    return BC.isRISCV() ? EstimatedEnd.lookup(BB) : BB->getOutputEndAddress();
+  };
+  auto setEstimatedRange = [&](BinaryBasicBlock *BB, uint64_t Start,
+                               uint64_t End) {
+    if (BC.isRISCV()) {
+      EstimatedStart[BB] = Start;
+      EstimatedEnd[BB] = End;
+    } else {
+      BB->setOutputStartAddress(Start);
+      BB->setOutputEndAddress(End);
+    }
+  };
+
   auto isBlockInRange = [&](const MCInst &Inst, uint64_t InstAddress,
                             const BinaryBasicBlock &BB) {
-    const int64_t Offset = BB.getOutputStartAddress() - InstAddress;
+    const int64_t Offset = getEstimatedStart(&BB) - InstAddress;
     return isBranchOffsetInRange(Inst, Offset);
   };
 
@@ -688,20 +820,21 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
 
   // Function fragments are relaxed independently.
   for (FunctionFragment &FF : BF.getLayout().fragments()) {
-    // Fill out code size estimation for the fragment. Use output BB address
-    // ranges to store offsets from the start of the function fragment.
+    // Fill out code size estimation for the fragment.
     uint64_t CodeSize = 0;
     for (BinaryBasicBlock *BB : FF) {
-      BB->setOutputStartAddress(CodeSize);
+      const uint64_t Start = CodeSize;
       CodeSize += BB->estimateSize();
-      BB->setOutputEndAddress(CodeSize);
+      setEstimatedRange(BB, Start, CodeSize);
     }
 
     // Dynamically-updated size of the fragment.
     uint64_t FragmentSize = CodeSize;
 
-    // Size of the trampoline in bytes.
-    constexpr uint64_t TrampolineSize = 4;
+    // AArch64 trampolines start as one direct branch. RISC-V trampolines use
+    // AUIPC+JALR so that split fragments can be placed outside the +/-1 MiB
+    // JAL range.
+    const uint64_t TrampolineSize = BC.isRISCV() ? 8 : 4;
 
     // Trampolines created for the fragment. DestinationBB -> TrampolineBB.
     // NB: here we store only the first trampoline created for DestinationBB.
@@ -712,23 +845,31 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
     // for basic blocks affected by the insertion of the trampoline.
     auto addTrampolineAfter = [&](BinaryBasicBlock *BB,
                                   BinaryBasicBlock *TargetBB, uint64_t Count,
+                                  MCPhysReg ScratchReg = 0,
                                   bool UpdateOffsets = true) {
       FunctionTrampolines.emplace_back(BB ? BB : FF.back(),
                                        BF.createBasicBlock());
       BinaryBasicBlock *TrampolineBB = FunctionTrampolines.back().second.get();
 
-      MCInst Inst;
+      InstructionListType Seq;
       {
         auto L = BC.scopeLock();
-        MIB->createUncondBranch(Inst, TargetBB->getLabel(), BC.Ctx.get());
+        if (BC.isRISCV())
+          MIB->createLongJmp(Seq, TargetBB->getLabel(), BC.Ctx.get(),
+                             /*IsTailCall=*/false, ScratchReg);
+        else {
+          Seq.emplace_back();
+          MIB->createUncondBranch(Seq.back(), TargetBB->getLabel(),
+                                  BC.Ctx.get());
+        }
       }
-      TrampolineBB->addInstruction(Inst);
+      TrampolineBB->addInstructions(Seq.begin(), Seq.end());
       TrampolineBB->addSuccessor(TargetBB, Count);
       TrampolineBB->setExecutionCount(Count);
       const uint64_t TrampolineAddress =
-          BB ? BB->getOutputEndAddress() : FragmentSize;
-      TrampolineBB->setOutputStartAddress(TrampolineAddress);
-      TrampolineBB->setOutputEndAddress(TrampolineAddress + TrampolineSize);
+          BB ? getEstimatedEnd(BB) : FragmentSize;
+      setEstimatedRange(TrampolineBB, TrampolineAddress,
+                        TrampolineAddress + TrampolineSize);
       TrampolineBB->setFragmentNum(FF.getFragmentNum());
 
       if (!FragmentTrampolines.lookup(TargetBB))
@@ -746,11 +887,10 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
 
       // Update offsets for blocks after BB.
       for (BinaryBasicBlock *IBB : FF) {
-        if (IBB->getOutputStartAddress() >= TrampolineAddress) {
-          IBB->setOutputStartAddress(IBB->getOutputStartAddress() +
-                                     TrampolineSize);
-          IBB->setOutputEndAddress(IBB->getOutputEndAddress() + TrampolineSize);
-        }
+        const uint64_t Start = getEstimatedStart(IBB);
+        if (Start >= TrampolineAddress)
+          setEstimatedRange(IBB, Start + TrampolineSize,
+                            getEstimatedEnd(IBB) + TrampolineSize);
       }
 
       // Update offsets for trampolines in this fragment that are placed after
@@ -763,11 +903,10 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
           continue;
         if (IBB == TrampolineBB)
           continue;
-        if (IBB->getOutputStartAddress() >= TrampolineAddress) {
-          IBB->setOutputStartAddress(IBB->getOutputStartAddress() +
-                                     TrampolineSize);
-          IBB->setOutputEndAddress(IBB->getOutputEndAddress() + TrampolineSize);
-        }
+        const uint64_t Start = getEstimatedStart(IBB);
+        if (Start >= TrampolineAddress)
+          setEstimatedRange(IBB, Start + TrampolineSize,
+                            getEstimatedEnd(IBB) + TrampolineSize);
       }
 
       return TrampolineBB;
@@ -781,14 +920,22 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
         continue;
 
       const MCSymbol *TargetSymbol = MIB->getTargetSymbol(*Inst);
-      BB->eraseInstruction(BB->findInstruction(Inst));
-      BB->setOutputEndAddress(BB->getOutputEndAddress() - TrampolineSize);
-
       BinaryBasicBlock::BinaryBranchInfo BI;
       BinaryBasicBlock *TargetBB = BB->getSuccessor(TargetSymbol, BI);
+      if (!TargetBB ||
+          (BC.isRISCV() && TargetBB->getFragmentNum() == BB->getFragmentNum()))
+        continue;
+
+      const uint64_t BranchSize =
+          BC.isRISCV() ? BC.computeCodeSize(Inst, Inst + 1) : 4;
+      const MCPhysReg ScratchReg = ScratchRegs.lookup(Inst);
+      BB->eraseInstruction(BB->findInstruction(Inst));
+      setEstimatedRange(BB, getEstimatedStart(BB),
+                        getEstimatedEnd(BB) - BranchSize);
 
       BinaryBasicBlock *TrampolineBB =
-          addTrampolineAfter(BB, TargetBB, BI.Count, /*UpdateOffsets*/ false);
+          addTrampolineAfter(BB, TargetBB, BI.Count, ScratchReg,
+                             /*UpdateOffsets=*/false);
       BB->replaceSuccessor(TargetBB, TrampolineBB, BI.Count);
     }
 
@@ -806,7 +953,8 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
 
       // Try to reuse an existing trampoline without introducing any new code.
       BinaryBasicBlock *TrampolineBB = FragmentTrampolines.lookup(TargetBB);
-      if (TrampolineBB && isBlockInRange(Inst, InstAddress, *TrampolineBB)) {
+      if (!BC.isRISCV() && TrampolineBB &&
+          isBlockInRange(Inst, InstAddress, *TrampolineBB)) {
         BB->replaceSuccessor(TargetBB, TrampolineBB, Count);
         TrampolineBB->setExecutionCount(TrampolineBB->getExecutionCount() +
                                         Count);
@@ -819,9 +967,10 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
       // of the fragment that is within the branch reach. Note that such
       // trampoline may change address later and become unreachable in which
       // case we will need further relaxation.
+      const MCPhysReg ScratchReg = ScratchRegs.lookup(&Inst);
       const int64_t OffsetToEnd = FragmentSize - InstAddress;
       if (Count == 0 && isBranchOffsetInRange(Inst, OffsetToEnd)) {
-        TrampolineBB = addTrampolineAfter(nullptr, TargetBB, Count);
+        TrampolineBB = addTrampolineAfter(nullptr, TargetBB, Count, ScratchReg);
         BB->replaceSuccessor(TargetBB, TrampolineBB, Count);
         auto L = BC.scopeLock();
         MIB->replaceBranchTarget(Inst, TrampolineBB->getLabel(), BC.Ctx.get());
@@ -840,12 +989,12 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
       if (ShouldReverseBranch && !IsReversibleBranch) {
         const uint64_t NextCount = BB->getBranchInfo(*NextBB).Count;
         BinaryBasicBlock *FallThrough =
-            addTrampolineAfter(BB, NextBB, NextCount);
+            addTrampolineAfter(BB, NextBB, NextCount, ScratchReg);
         BB->replaceSuccessor(NextBB, FallThrough, NextCount);
       }
 
       // Create a trampoline basic block for the taken target of the branch.
-      TrampolineBB = addTrampolineAfter(BB, TargetBB, Count);
+      TrampolineBB = addTrampolineAfter(BB, TargetBB, Count, ScratchReg);
 
       if (ShouldReverseBranch && IsReversibleBranch) {
         BB->swapConditionalSuccessors();
@@ -865,25 +1014,32 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
       ++NumIterations;
       for (auto BBI = FF.begin(); BBI != FF.end(); ++BBI) {
         BinaryBasicBlock *BB = *BBI;
-        uint64_t NextInstOffset = BB->getOutputStartAddress();
+        uint64_t NextInstOffset = getEstimatedStart(BB);
         for (MCInst &Inst : *BB) {
           const size_t InstAddress = NextInstOffset;
           if (!MIB->isPseudo(Inst))
-            NextInstOffset += 4;
+            NextInstOffset +=
+                BC.isRISCV() ? BC.computeCodeSize(&Inst, &Inst + 1) : 4;
 
           if (!mayNeedStub(BF.getBinaryContext(), Inst))
             continue;
 
-          const size_t BitsAvailable = MIB->getPCRelEncodingSize(Inst);
-
-          // Span of +/-128MB.
-          if (BitsAvailable == LongestJumpBits)
-            continue;
-
           const MCSymbol *TargetSymbol = MIB->getTargetSymbol(Inst);
           BinaryBasicBlock *TargetBB = BB->getSuccessor(TargetSymbol);
-          assert(TargetBB &&
-                 "Basic block target expected for conditional branch.");
+          if (!TargetBB)
+            continue;
+
+          const size_t BitsAvailable = MIB->getPCRelEncodingSize(Inst);
+
+          // AArch64 compact code model keeps fragments within the range of B.
+          if (!BC.isRISCV() && BitsAvailable == LongestJumpBits)
+            continue;
+
+          // Existing intra-fragment RISC-V branches are handled by JITLink's
+          // normal branch relaxation. This pass is responsible for edges that
+          // become unrepresentable specifically because of function split.
+          if (BC.isRISCV() && TargetBB->getFragmentNum() == FF.getFragmentNum())
+            continue;
 
           // Check if the relaxation is needed.
           if (TargetBB->getFragmentNum() == FF.getFragmentNum() &&
@@ -930,6 +1086,15 @@ void LongJmpPass::relaxLocalBranches(BinaryFunction &BF) {
 }
 
 Error LongJmpPass::runOnFunctions(BinaryContext &BC) {
+  if (BC.isRISCV()) {
+    BC.outs() << "BOLT-INFO: relaxing RISC-V cross-fragment branches\n";
+    for (BinaryFunction *BF : BC.getOutputBinaryFunctions()) {
+      if (!BC.shouldEmit(*BF) || !BF->isSimple() || !BF->isSplit())
+        continue;
+      relaxLocalBranches(*BF);
+    }
+    return Error::success();
+  }
 
   assert((opts::CompactCodeModel ||
           opts::SplitStrategy != opts::SplitFunctionsStrategy::CDSplit) &&
